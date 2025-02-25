@@ -1,16 +1,19 @@
+# FastAPI server essentials
 from typing import Union, cast
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header, status
 import uvicorn
 
-from sqlalchemy import select
+# PostgreSQL database connection
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
+# Information Security
 from passlib.context import CryptContext
 
 # Locals
 from database import get_db
 from models import User     # Local model
+from auth import generate_jwt, verify_jwt
 
 app = FastAPI()
 
@@ -66,17 +69,64 @@ def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
     elif isinstance(user_login, UserLoginWithName):
         filter_condition = (User.name == user_login.name)
     else:
-        raise HTTPException(status_code=400, detail="Wrong ")
+        raise HTTPException(status_code=400, detail="(Dev) Invalid post parameters.")
 
     db_user = db.query(User).filter(
         cast("ColumnElement[bool]", filter_condition)
     ).first()
 
+    # Password validation failed.
     if not db_user or not pwd_context.verify(user_login.password, db_user.password_hash):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+        raise HTTPException(status_code=400, detail="Incorrect username or password.")
 
-    return {"msg": "Login successful", "user_id": db_user.id}
+    # Certified user, hand out JWT token.
+    token = generate_jwt(db_user.id)
 
+    return {
+        "msg": "Login successful",
+        "user_id": db_user.id,
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+
+def get_current_user(token: str = Header(..., alias="Authorization")):
+    credential_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                         detail="Could not validate authorization credentials.",
+                                         headers={"WWW-Authenticate": "Bearer"}, )
+    if not token:
+        raise credential_exception
+
+    token = token.split(" ")[1] if " " in token else token
+
+    payload = verify_jwt(token)
+    if payload is None:
+        raise credential_exception
+
+    user_id = payload.get("user_id")
+    if user_id is None:
+        raise credential_exception
+
+    return user_id
+
+
+@app.get("/get_user/")
+def get_user(user_id, token, db: Session = Depends(get_db)):
+
+    # Try to verify JWT token.
+    cur_user_id = get_current_user(token)
+    db_user = db.query(User).filter(
+        cast("ColumnElement[bool]", User.id == user_id)
+    ).first()
+
+    if not db_user:
+        raise HTTPException(status_code=404, detail=f"User with id {user_id} is not found.")
+
+    return {
+        "id": db_user.id,
+        "email": db_user.email,
+        "name": db_user.name
+    }
 
 # @app.get("/")
 # def read_root():
