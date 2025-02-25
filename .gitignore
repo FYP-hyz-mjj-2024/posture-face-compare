@@ -1,4 +1,4 @@
 .env
 .idea
 __pycache__
-devdocs/API
+_devdocs/API
