@@ -1,6 +1,7 @@
 # FastAPI server essentials
 from typing import Union, cast
 from fastapi import APIRouter, Depends, HTTPException, Header, status
+import uuid
 
 # PostgreSQL database connection
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from passlib.context import CryptContext
 
 # Locals
 from database import get_db
-from models import User     # Local model
+from .models import User     # Local model
 from auth import generate_jwt, validate_user
 from .schemas import UserRegister, UserLoginWithEmail, UserLoginWithName
 
@@ -39,7 +40,7 @@ def register_user(user_register: UserRegister,
     db.commit()
     db.refresh(new_user)
 
-    return {"msg": "User registered successfully.", "user_id": new_user.id}
+    return {"msg": "User registered successfully.", "user_id": str(new_user.id)}
 
 
 @router.post("/login/")
@@ -66,14 +67,14 @@ def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
 
     return {
         "msg": "Login successful",
-        "user_id": db_user.id,
+        "user_id": str(db_user.id),
         "access_token": token,
         "token_type": "bearer"
     }
 
 
 @router.post("/delete_user/")
-def delete_user(user_id: int, token: str, db: Session = Depends(get_db)):
+def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     validate_user(user_id, token)
 
     db_user = db.query(User).filter(
@@ -86,11 +87,11 @@ def delete_user(user_id: int, token: str, db: Session = Depends(get_db)):
     db.delete(db_user)
     db.commit()
 
-    return {"msg": "User deleted successfully.", "user_id": user_id}
+    return {"msg": "User deleted successfully.", "user_id": str(user_id)}
 
 
 @router.get("/get_user/")
-def get_user(user_id: int, token: str, db: Session = Depends(get_db)):
+def get_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     validate_user(user_id, token)
 
     db_user = db.query(User).filter(
@@ -101,7 +102,7 @@ def get_user(user_id: int, token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"User with id {user_id} is not found.")
 
     return {
-        "id": db_user.id,
+        "user_id": str(db_user.id),
         "email": db_user.email,
         "name": db_user.name
     }

@@ -3,6 +3,7 @@ import jwt
 import secrets
 from dotenv import load_dotenv
 import datetime
+import uuid
 from fastapi import HTTPException, status, Header
 
 load_dotenv()
@@ -22,14 +23,14 @@ def generate_secret_key(byte_num: int = 32):
     return secret_key
 
 
-def generate_jwt(user_id):
+def generate_jwt(user_id: uuid.UUID):
     """
     Generate JWT token.
     :param user_id: User ID.
     :return: JWT token.
     """
     payload = {
-        "user_id": user_id,
+        "user_id": str(user_id),
         "exp": datetime.datetime.now() + datetime.timedelta(days=30)
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -50,7 +51,7 @@ def verify_jwt(token):
 
 
 def validate_user(
-        user_id: int,
+        user_id: uuid.UUID,
         token: str = Header(..., alias="Authorization")):
     """
     Validate a given user id with a jwt token. Prevents: Expired token, invalid token, unmatched token.
@@ -73,7 +74,7 @@ def validate_user(
     if token_user_id is None:
         raise credential_exception
 
-    if user_id != token_user_id:
+    if str(user_id) != token_user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail=f"Authorization token can't be verified specifically for this user.")
 
