@@ -6,8 +6,17 @@ import datetime
 import uuid
 from fastapi import HTTPException, status, Header
 
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = os.getenv("SMTP_PORT")
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+EMAIL_FROM = os.getenv("EMAIL_FROM")
 
 if not SECRET_KEY:
     raise ValueError("Missing critical environment variable: "
@@ -79,3 +88,36 @@ def validate_user(
                             detail=f"Authorization token can't be verified specifically for this user.")
 
     return True
+
+
+def send_verification_email(email_to: str, user_id: str, token: str):
+    """
+    Send a verification email to the email address of the registered user.
+    :param email_to: Destination email address of the registered user.
+    :param user_id: UUID of the registered user.
+    :param token: JWT token of the registered user.
+    :return:
+    """
+    subject = "Verify email for YFYW backend management"
+    body = (f"Your user id is: \n{user_id}\n"
+            f"Your validation token is: \n{token}")
+
+    msg = MIMEMultipart()
+    msg["From"] = EMAIL_FROM
+    msg["To"] = email_to
+    msg["Subject"] = subject
+
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT))
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.sendmail(EMAIL_FROM, email_to, msg.as_string())
+        server.quit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send email:{str(e)}.")
+
+
+if __name__ == "__main__":
+    send_verification_email("yanzhenhuangwork@gmail.com", "Hello world!")
