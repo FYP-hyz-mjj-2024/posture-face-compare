@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 load_dotenv()
+SERVER_DOMAIN = os.getenv('SERVER_DOMAIN')
 SECRET_KEY = os.getenv("SECRET_KEY")
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = os.getenv("SMTP_PORT")
@@ -99,15 +100,31 @@ def send_verification_email(email_to: str, user_id: str, token: str):
     :return:
     """
     subject = "Verify email for YFYW backend management"
-    body = (f"Your user id is: \n{user_id}\n"
-            f"Your validation token is: \n{token}")
+    verification_url = f"{SERVER_DOMAIN}/user/verify_email/?user_id={user_id}&token={token}"
+
+    html_content = f"""
+    <html>
+        <main>
+            <body>
+                <h2>Verify your email.</h2>
+                <p>Thanks for registering with us!</p>
+                <p>Please click the link below to verify your email address:</p>
+                <p><a href="{verification_url}">Verify Email</a></p>
+                <p>Please ignore this email if you do not expect this.</p>
+            </body>
+        </main>
+    </html>
+    """
+
+    # body = (f"Your user id is: \n{user_id}\n"
+    #         f"Your validation token is: \n{token}")
 
     msg = MIMEMultipart()
     msg["From"] = EMAIL_FROM
     msg["To"] = email_to
     msg["Subject"] = subject
 
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(html_content, "html", "utf-8"))
 
     try:
         server = smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT))
@@ -120,4 +137,5 @@ def send_verification_email(email_to: str, user_id: str, token: str):
 
 
 if __name__ == "__main__":
-    send_verification_email("yanzhenhuangwork@gmail.com", "Hello world!")
+    send_verification_email("hyzumarchive@gmail.com", user_id="UUID_placeholder", token="token_placeholder")
+

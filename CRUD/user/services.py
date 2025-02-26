@@ -55,7 +55,7 @@ def register_user(user_register: UserRegister,
     return {"msg": "User registered successfully. Please check your mailbox.", "user_id": str(new_user.id)}
 
 
-@router.get("/verify-email/")
+@router.get("/verify_email/")
 def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     New user email verification.
