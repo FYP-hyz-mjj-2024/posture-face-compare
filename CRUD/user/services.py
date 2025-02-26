@@ -11,7 +11,7 @@ from passlib.context import CryptContext
 
 # Locals
 from database import get_db
-from .models import User     # Local model
+from .models import User, GRANT_PERMISSION
 from auth import generate_jwt, validate_user, send_verification_email
 from .schemas import UserRegister, UserLoginWithEmail, UserLoginWithName
 
@@ -70,7 +70,7 @@ def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
         cast("ColumnElement[bool]", User.id == user_id)
     ).first()
 
-    if not db_user:
+    if not db_user or not isinstance(db_user, User):
         raise HTTPException(status_code=404, detail=f"Can't find user with id {str(user_id)}.")
 
     if db_user.is_verified:
@@ -104,7 +104,7 @@ def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
     ).first()
 
     # Password validation failed.
-    if not db_user or not pwd_context.verify(user_login.password, db_user.password_hash):
+    if not db_user or not isinstance(db_user, User) or not pwd_context.verify(user_login.password, db_user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect username or password.")
 
     # Email verification.
@@ -122,7 +122,7 @@ def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
     }
 
 
-@router.post("/delete_user/")
+@router.post("/delete_account/")
 def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     Delete existing user.
@@ -137,7 +137,7 @@ def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
         cast("ColumnElement[bool]", User.id == user_id)
     ).first()
 
-    if not db_user:
+    if not db_user or not isinstance(db_user, User):
         raise HTTPException(status_code=404, detail=f"User with id {user_id} is not found.")
 
     db.delete(db_user)
@@ -161,13 +161,69 @@ def get_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
         cast("ColumnElement[bool]", User.id == user_id)
     ).first()
 
-    if not db_user:
+    if not db_user or not isinstance(db_user, User):
         raise HTTPException(status_code=404, detail=f"User with id {user_id} is not found.")
 
     return {
         "user_id": str(db_user.id),
+        "created_at": str(db_user.created_at),
         "email": db_user.email,
         "name": db_user.name
+    }
+
+
+@router.post("/grant_user/")
+def grant_permission(operator_user_id: uuid.UUID,
+                     permission_applier_user_id: uuid.UUID,
+                     token: str,
+                     permission: int,
+                     db: Session = Depends(get_db)):
+    """
+    The ability of a superuser to grant other user access.
+    :param operator_user_id: The operator's user UUID.
+    :param permission_applier_user_id: The permission applier's user UUID.
+    :param token: The operator's JWT token.
+    :param permission: Permission that the operator wants to grant.
+    :param db: Database object.
+    :return: Result of permission granting.
+    """
+
+    '''
+    Operator
+    '''
+    validate_user(operator_user_id, token)
+
+    db_operator_user = db.query(User).filter(
+        cast("ColumnElement[bool]", User.id == operator_user_id)
+    ).first()
+
+    # Operator not found.
+    if not db_operator_user or not isinstance(db_operator_user, User):
+        raise HTTPException(status_code=404, detail=f"Operator {permission_applier_user_id} is not found.")
+
+    # Operator has no permission to grant other's access.
+    if not db_operator_user.check_permission(permission=GRANT_PERMISSION):
+        raise HTTPException(status_code=404, detail=f"Operator {permission_applier_user_id} "
+                                                    f"is not allowed to grant permission.")
+
+    '''
+    Permission Applier
+    '''
+    db_permission_applier_user = db.query(User).filter(
+        cast("ColumnElement[bool]", User.id == permission_applier_user_id)
+    ).first()
+
+    # Permission Applier not found
+    if not db_permission_applier_user or not isinstance(db_permission_applier_user, User):
+        raise HTTPException(status_code=404, detail=f"User with id {permission_applier_user_id} is not found.")
+
+    db_permission_applier_user.grant_permission(permission)
+    db.commit()
+
+    return {
+        "msg": "Grant permission successful.",
+        "user_id": str(permission_applier_user_id),
+        "permission": permission,
     }
 
 

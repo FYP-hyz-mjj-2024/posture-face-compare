@@ -116,9 +116,6 @@ def send_verification_email(email_to: str, user_id: str, token: str):
     </html>
     """
 
-    # body = (f"Your user id is: \n{user_id}\n"
-    #         f"Your validation token is: \n{token}")
-
     msg = MIMEMultipart()
     msg["From"] = EMAIL_FROM
     msg["To"] = email_to
@@ -133,7 +130,8 @@ def send_verification_email(email_to: str, user_id: str, token: str):
         server.sendmail(EMAIL_FROM, email_to, msg.as_string())
         server.quit()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email:{str(e)}.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to send email:{str(e)}.")
 
 
 if __name__ == "__main__":
