@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import text
 
+# Root reference
 from database import Base
 
 
