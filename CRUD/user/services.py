@@ -1,6 +1,6 @@
 # FastAPI server essentials
-from typing import Union, cast
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Union, cast, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
 import uuid
 
 # PostgreSQL database connection
@@ -19,6 +19,35 @@ from .schemas import UserRegister, UserLoginWithEmail, UserLoginWithName
 router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _find_user_by(attr: str,
+                  val,
+                  fail_detail: str = "User not found.",
+                  db: Session = Depends()):
+    """
+    Find user by its attribute. Equivalent to:
+
+    ``SELECT * FROM users WHERE attr = val;``
+
+    :param attr: The column attribute, should be unique.
+    :param val: The match value of the attribute.
+    :param db: Database Session.
+    :return: The matched user. Otherwise, returns 404.
+    """
+    column = getattr(User, attr, None)
+    if column is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Invalid attribute access of {attr}.")
+
+    db_user = db.query(User).filter(
+        cast("ColumnElement[bool]", column == val)
+    ).first()
+
+    if not db_user or not isinstance(db_user, User):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=fail_detail)
+
+    return db_user
 
 
 @router.post("/register/")
@@ -66,12 +95,10 @@ def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id=user_id, token=token)
 
-    db_user = db.query(User).filter(
-        cast("ColumnElement[bool]", User.id == user_id)
-    ).first()
-
-    if not db_user or not isinstance(db_user, User):
-        raise HTTPException(status_code=404, detail=f"Can't find user with id {str(user_id)}.")
+    db_user = _find_user_by(attr="id",
+                            val=user_id,
+                            fail_detail=f"User with id {user_id} is not found.",
+                            db=db)
 
     if db_user.is_verified:
         raise HTTPException(status_code=400, detail=f"Email already verified.")
@@ -133,12 +160,10 @@ def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id, token)
 
-    db_user = db.query(User).filter(
-        cast("ColumnElement[bool]", User.id == user_id)
-    ).first()
-
-    if not db_user or not isinstance(db_user, User):
-        raise HTTPException(status_code=404, detail=f"User with id {user_id} is not found.")
+    db_user = _find_user_by(attr="id",
+                            val=user_id,
+                            fail_detail=f"User with id {user_id} is not found.",
+                            db=db)
 
     db.delete(db_user)
     db.commit()
@@ -157,12 +182,10 @@ def get_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id, token)
 
-    db_user = db.query(User).filter(
-        cast("ColumnElement[bool]", User.id == user_id)
-    ).first()
-
-    if not db_user or not isinstance(db_user, User):
-        raise HTTPException(status_code=404, detail=f"User with id {user_id} is not found.")
+    db_user = _find_user_by(attr="id",
+                            val=user_id,
+                            fail_detail=f"User with id {user_id} is not found.",
+                            db=db)
 
     return {
         "user_id": str(db_user.id),
@@ -172,16 +195,31 @@ def get_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/get_users/")
+def get_users(query: str = "", db: Session = Depends(get_db)):
+    """
+    Get a list of users with a search query. If the query is not given,
+    all users are returned, i.e., matches the empty query.
+    :param query: The search query.
+    :param db: Database object.
+    :return: A list of users that matches the query.
+    """
+
+    db_users = db.query(User).filter(User.name.like(f"%{query}%")).all()
+
+    return db_users
+
+
 @router.post("/grant_user/")
 def grant_permission(operator_user_id: uuid.UUID,
-                     permission_applier_user_id: uuid.UUID,
+                     requester_user_id: uuid.UUID,
                      token: str,
                      permission: int,
                      db: Session = Depends(get_db)):
     """
     The ability of a superuser to grant other user access.
     :param operator_user_id: The operator's user UUID.
-    :param permission_applier_user_id: The permission applier's user UUID.
+    :param requester_user_id: The permission applier's user UUID.
     :param token: The operator's JWT token.
     :param permission: Permission that the operator wants to grant.
     :param db: Database object.
@@ -193,36 +231,30 @@ def grant_permission(operator_user_id: uuid.UUID,
     '''
     validate_user(operator_user_id, token)
 
-    db_operator_user = db.query(User).filter(
-        cast("ColumnElement[bool]", User.id == operator_user_id)
-    ).first()
-
-    # Operator not found.
-    if not db_operator_user or not isinstance(db_operator_user, User):
-        raise HTTPException(status_code=404, detail=f"Operator {permission_applier_user_id} is not found.")
+    db_operator_user = _find_user_by(attr="id",
+                                     val=operator_user_id,
+                                     fail_detail=f"Operator {operator_user_id} not found.",
+                                     db=db)
 
     # Operator has no permission to grant other's access.
     if not db_operator_user.check_permission(permission=GRANT_PERMISSION):
-        raise HTTPException(status_code=404, detail=f"Operator {permission_applier_user_id} "
+        raise HTTPException(status_code=403, detail=f"Operator {requester_user_id} "
                                                     f"is not allowed to grant permission.")
 
     '''
     Permission Applier
     '''
-    db_permission_applier_user = db.query(User).filter(
-        cast("ColumnElement[bool]", User.id == permission_applier_user_id)
-    ).first()
+    db_requester_user = _find_user_by(attr="id",
+                                      val=requester_user_id,
+                                      fail_detail=f"Requestor {requester_user_id} not found.",
+                                      db=db)
 
-    # Permission Applier not found
-    if not db_permission_applier_user or not isinstance(db_permission_applier_user, User):
-        raise HTTPException(status_code=404, detail=f"User with id {permission_applier_user_id} is not found.")
-
-    db_permission_applier_user.grant_permission(permission)
+    db_requester_user.grant_permission(permission)
     db.commit()
 
     return {
         "msg": "Grant permission successful.",
-        "user_id": str(permission_applier_user_id),
+        "user_id": str(requester_user_id),
         "permission": permission,
     }
 

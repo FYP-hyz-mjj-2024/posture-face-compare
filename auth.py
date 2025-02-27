@@ -135,5 +135,6 @@ def send_verification_email(email_to: str, user_id: str, token: str):
 
 
 if __name__ == "__main__":
-    send_verification_email("hyzumarchive@gmail.com", user_id="UUID_placeholder", token="token_placeholder")
-
+    # send_verification_email("hyzumarchive@gmail.com", user_id="UUID_placeholder", token="token_placeholder")
+    sk = generate_secret_key()
+    print(sk)
