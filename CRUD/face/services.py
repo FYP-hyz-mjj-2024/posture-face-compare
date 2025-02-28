@@ -26,19 +26,28 @@ router = APIRouter()
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
+# Detect faces in an image.
 face_detector = dlib.get_frontal_face_detector()
+
+# Converts Image pixels to landmarks.
 predictor = dlib.shape_predictor(os.path.join(os.path.dirname(__file__),
                                               "models",
                                               "shape_predictor_68_face_landmarks.dat"))
 
+# Converts landmarks to feature.
 face_rec_model = dlib.face_recognition_model_v1(os.path.join(os.path.dirname(__file__),
                                                              "models",
                                                              "dlib_face_recognition_resnet_model_v1.dat"))
+
+global cached_faces
+
+cached_faces = []
 
 
 def retrieve_face_feature(blob):
     """
     Retrieve face features from a blob. If there's no face in the image, return none.
+    Each face is represented by a feature of a length-128 vector.
     :param blob: Blob, base64 of an image.
     :return: The face feature of the first discovered face in the image,
              if this image contains any faces. Otherwise, None.
@@ -70,15 +79,14 @@ def retrieve_face_feature(blob):
 
 
 def compare_faces(feature_1, feature_2) -> float:
+    """
+    Calculate the inverse Euclidean distance of two face features,
+    each being a 128-dimensional vector.
+    :param feature_1: First feature.
+    :param feature_2: Second feature.
+    :return: The inverse Euclidean distance as a similarity score.
+    """
     f1, f2 = np.array(feature_1), np.array(feature_2)
-    # norm_1, norm_2 = np.linalg.norm(f1), np.linalg.norm(f2)
-    # if norm_1 == 0 or norm_2 == 0:
-    #     return 0.0
-    #
-    # dot_prod = np.dot(f1, f2.T)
-    # _score = dot_prod / (norm_1 * norm_2)
-    # score = 0.5 * (_score + 1)
-
     score = 1 / (np.linalg.norm(f1 - f2) + np.finfo(np.float32).eps)
     return float(score)
 
@@ -175,12 +183,15 @@ def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
             "msg": "No face detected, therefore the image is not saved."
         }
 
-    db_faces = db.query(Face).all()
-    descriptions = [db_face.description for db_face in db_faces]
-    scores = [compare_faces(face_feature, db_face.feature) for db_face in db_faces]
+    global cached_faces
+    if len(cached_faces) == 0:
+        db_faces = db.query(Face).all()
+        cached_faces = [(db_face.description, db_face.feature) for db_face in db_faces]
+
+    desc_scores = [(cached_feature[0], compare_faces(face_feature, cached_feature[1]))
+                   for cached_feature in cached_faces]
+    desc_scores = sorted(desc_scores, key=lambda obj: obj[1], reverse=True)
 
     return {
-        "features": sorted([(desc, score) for desc, score in zip(descriptions, scores)],
-                           key=lambda obj: obj[1],
-                           reverse=True)
+        "desc_scores": desc_scores
     }
