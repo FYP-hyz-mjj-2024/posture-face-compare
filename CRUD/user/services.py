@@ -10,10 +10,10 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 # Locals
-from database import get_db
-from .models import User, GRANT_PERMISSION
 from auth import generate_jwt, validate_user, send_verification_email
-from .schemas import UserRegister, UserLoginWithEmail, UserLoginWithName
+from database import get_db
+from CRUD.user.models import User, GRANT_PERMISSION
+from CRUD.user.schemas import UserRegister, UserLoginWithEmail, UserLoginWithName
 
 
 router = APIRouter()
@@ -21,10 +21,10 @@ router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def _find_user_by(attr: str,
-                  val,
-                  fail_detail: str = "User not found.",
-                  db: Session = Depends()):
+def find_user_by(attr: str,
+                 val,
+                 fail_detail: str = "User not found.",
+                 db: Session = Depends()) -> User:
     """
     Find user by its attribute. Equivalent to:
 
@@ -32,6 +32,7 @@ def _find_user_by(attr: str,
 
     :param attr: The column attribute, should be unique.
     :param val: The match value of the attribute.
+    :param fail_detail: The error message to display when find user failed.
     :param db: Database Session.
     :return: The matched user. Otherwise, returns 404.
     """
@@ -95,10 +96,10 @@ def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id=user_id, token=token)
 
-    db_user = _find_user_by(attr="id",
-                            val=user_id,
-                            fail_detail=f"User with id {user_id} is not found.",
-                            db=db)
+    db_user = find_user_by(attr="id",
+                           val=user_id,
+                           fail_detail=f"User with id {user_id} is not found.",
+                           db=db)
 
     if db_user.is_verified:
         raise HTTPException(status_code=400, detail=f"Email already verified.")
@@ -160,10 +161,10 @@ def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id, token)
 
-    db_user = _find_user_by(attr="id",
-                            val=user_id,
-                            fail_detail=f"User with id {user_id} is not found.",
-                            db=db)
+    db_user = find_user_by(attr="id",
+                           val=user_id,
+                           fail_detail=f"User with id {user_id} is not found.",
+                           db=db)
 
     db.delete(db_user)
     db.commit()
@@ -182,10 +183,10 @@ def get_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id, token)
 
-    db_user = _find_user_by(attr="id",
-                            val=user_id,
-                            fail_detail=f"User with id {user_id} is not found.",
-                            db=db)
+    db_user = find_user_by(attr="id",
+                           val=user_id,
+                           fail_detail=f"User with id {user_id} is not found.",
+                           db=db)
 
     return {
         "user_id": str(db_user.id),
@@ -231,10 +232,10 @@ def grant_permission(operator_user_id: uuid.UUID,
     '''
     validate_user(operator_user_id, token)
 
-    db_operator_user = _find_user_by(attr="id",
-                                     val=operator_user_id,
-                                     fail_detail=f"Operator {operator_user_id} not found.",
-                                     db=db)
+    db_operator_user = find_user_by(attr="id",
+                                    val=operator_user_id,
+                                    fail_detail=f"Operator {operator_user_id} not found.",
+                                    db=db)
 
     # Operator has no permission to grant other's access.
     if not db_operator_user.check_permission(permission=GRANT_PERMISSION):
@@ -244,10 +245,10 @@ def grant_permission(operator_user_id: uuid.UUID,
     '''
     Permission Applier
     '''
-    db_requester_user = _find_user_by(attr="id",
-                                      val=requester_user_id,
-                                      fail_detail=f"Requestor {requester_user_id} not found.",
-                                      db=db)
+    db_requester_user = find_user_by(attr="id",
+                                     val=requester_user_id,
+                                     fail_detail=f"Requestor {requester_user_id} not found.",
+                                     db=db)
 
     db_requester_user.grant_permission(permission)
     db.commit()

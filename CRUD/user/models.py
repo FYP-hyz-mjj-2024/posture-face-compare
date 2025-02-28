@@ -5,6 +5,7 @@ from sqlalchemy.sql import text
 # Root reference
 from database import Base
 
+
 """
 Bitwise permission (from lowest to highest)
 0 - Read permission: Permission to read content from database.
