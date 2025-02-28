@@ -28,8 +28,12 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
 face_detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(os.path.join(os.path.dirname(__file__),
-                                              "predictor",
+                                              "models",
                                               "shape_predictor_68_face_landmarks.dat"))
+
+face_rec_model = dlib.face_recognition_model_v1(os.path.join(os.path.dirname(__file__),
+                                                             "models",
+                                                             "dlib_face_recognition_resnet_model_v1.dat"))
 
 
 def retrieve_face_feature(blob):
@@ -60,20 +64,22 @@ def retrieve_face_feature(blob):
 
     # Face landmarks.
     landmarks = predictor(image_gray, face)
-    face_feature = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(68)]
+    face_feature = face_rec_model.compute_face_descriptor(image, landmarks)
 
-    return face_feature
+    return list(face_feature)
 
 
 def compare_faces(feature_1, feature_2) -> float:
     f1, f2 = np.array(feature_1), np.array(feature_2)
-    norm_1, norm_2 = np.linalg.norm(f1), np.linalg.norm(f2)
-    if norm_1 == 0 or norm_2 == 0:
-        return 0.0
+    # norm_1, norm_2 = np.linalg.norm(f1), np.linalg.norm(f2)
+    # if norm_1 == 0 or norm_2 == 0:
+    #     return 0.0
+    #
+    # dot_prod = np.dot(f1, f2.T)
+    # _score = dot_prod / (norm_1 * norm_2)
+    # score = 0.5 * (_score + 1)
 
-    dot_prod = np.dot(f1, f2.T)
-    _score = dot_prod / (norm_1 * norm_2)
-    score = 0.5 * (np.mean(_score) + 1)
+    score = 1 / (np.linalg.norm(f1 - f2) + np.finfo(np.float32).eps)
     return float(score)
 
 
