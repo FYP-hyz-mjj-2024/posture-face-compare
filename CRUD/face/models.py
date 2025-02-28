@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func, LargeBinary
+from sqlalchemy import Column, String, DateTime, LargeBinary, JSON, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import text
 
@@ -26,5 +26,7 @@ class Face(Base):
                          nullable=False)
 
     blob = Column(LargeBinary, nullable=False)
+
+    feature = Column(JSON, nullable=False)
 
     description = Column(String, nullable=True)

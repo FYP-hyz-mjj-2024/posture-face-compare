@@ -60,18 +60,29 @@ def retrieve_face_feature(blob):
 
     # Face landmarks.
     landmarks = predictor(image_gray, face)
-    face_feature = np.array([landmarks.part(i) for i in range(68)])
+    face_feature = [(landmarks.part(i).x, landmarks.part(i).y) for i in range(68)]
 
     return face_feature
 
 
-@router.post("/upload_face/")
-def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+def compare_faces(feature_1, feature_2) -> float:
+    f1, f2 = np.array(feature_1), np.array(feature_2)
+    norm_1, norm_2 = np.linalg.norm(f1), np.linalg.norm(f2)
+    if norm_1 == 0 or norm_2 == 0:
+        return 0.0
+
+    dot_prod = np.dot(f1, f2.T)
+    _score = dot_prod / (norm_1 * norm_2)
+    score = 0.5 * (np.mean(_score) + 1)
+    return float(score)
+
+
+def _guard_face_db(face_upload: FaceUpload, db: Session):
     """
-    Upload a face.
-    :param face_upload: Face image file to upload.
+    Check for user permission and uploaded file types.
+    :param face_upload: FaceUpload schema object.
     :param db: Database session.
-    :return: Upload message.
+    :return:
     """
     # Check for user validation.
     uploader_id = face_upload.user_id
@@ -101,17 +112,32 @@ def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Unsupported file type: {file_ext}.")
 
+    return True
+
+
+@router.post("/upload_face/")
+def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+    """
+    Upload a face.
+    :param face_upload: Face image file to upload.
+    :param db: Database session.
+    :return: Upload message.
+    """
+
+    _guard_face_db(face_upload=face_upload, db=db)
+
     face_feature = retrieve_face_feature(face_upload.blob)
 
     if face_feature is None:
         return {
-            "msg": "No face detected."
+            "msg": "No face detected, therefore the image is not saved."
         }
 
     new_face = Face(
         uploaded_by=face_upload.user_id,
         blob=face_upload.blob,
-        description=face_upload.description
+        description=face_upload.description,
+        feature=face_feature
     )
 
     db.add(new_face)
@@ -123,5 +149,32 @@ def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
         "uploaded_at": new_face.uploaded_at,
         "uploaded_by": new_face.uploaded_by,
         "description": new_face.description,
-        "face_feature": str(face_feature)
+    }
+
+
+@router.post("/find_face/")
+def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+    """
+    Upload a face and find its match.
+    :param face_upload: Face blob to upload.
+    :param db: Database session.
+    :return: A list of matched faces' descriptions with scores.
+    """
+    _guard_face_db(face_upload=face_upload, db=db)
+
+    face_feature = retrieve_face_feature(face_upload.blob)
+
+    if face_feature is None:
+        return {
+            "msg": "No face detected, therefore the image is not saved."
+        }
+
+    db_faces = db.query(Face).all()
+    descriptions = [db_face.description for db_face in db_faces]
+    scores = [compare_faces(face_feature, db_face.feature) for db_face in db_faces]
+
+    return {
+        "features": sorted([(desc, score) for desc, score in zip(descriptions, scores)],
+                           key=lambda obj: obj[1],
+                           reverse=True)
     }
