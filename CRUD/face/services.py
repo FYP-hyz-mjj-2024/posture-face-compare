@@ -1,5 +1,6 @@
 # Basic
 import os
+import time
 import base64
 from io import BytesIO
 from PIL import Image
@@ -183,6 +184,8 @@ def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
             "msg": "No face detected, therefore the image is not saved."
         }
 
+    _t_start = time.time()
+
     global cached_faces
     if len(cached_faces) == 0:
         db_faces = db.query(Face).all()
@@ -192,6 +195,9 @@ def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
                    for cached_feature in cached_faces]
     desc_scores = sorted(desc_scores, key=lambda obj: obj[1], reverse=True)
 
+    _t_query = time.time() - _t_start
+
     return {
-        "desc_scores": desc_scores
+        "desc_scores": desc_scores,
+        "query_time": _t_query
     }
