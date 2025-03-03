@@ -82,7 +82,12 @@ def register_user(user_register: UserRegister,
     # Send verification email
     send_verification_email(email_to=new_user.email, user_id=new_user.id, token=token)
 
-    return {"msg": "User registered successfully. Please check your mailbox.", "user_id": str(new_user.id)}
+    return {
+        "msg": "OK",
+        "user_id": str(new_user.id),
+        "token": token,
+        "detail": "User registered successfully. Please check your mailbox."
+    }
 
 
 @router.get("/verify_email/")
