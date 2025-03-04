@@ -131,7 +131,7 @@ def send_verification_email(email_to: str, user_id: str, token: str):
         server.quit()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to send email:{str(e)}.")
+                            detail=f"Failed to send email to {email_to}: {str(e)}.")
 
 
 if __name__ == "__main__":

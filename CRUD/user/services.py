@@ -142,7 +142,8 @@ def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
     ).first()
 
     # Password validation failed.
-    if not db_user or not isinstance(db_user, User) or not pwd_context.verify(user_login.password, db_user.password_hash):
+    if (not db_user or not isinstance(db_user, User) or
+            not pwd_context.verify(user_login.password, db_user.password_hash)):
         raise HTTPException(status_code=400, detail="Incorrect username or password.")
 
     # Email verification.
