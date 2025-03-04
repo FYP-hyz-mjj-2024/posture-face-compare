@@ -20,6 +20,8 @@ router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+PERMITTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined"]
+
 
 def find_user_by(attr: str,
                  val,
@@ -66,6 +68,9 @@ def register_user(user_register: UserRegister,
 
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
+
+    if user_register.name in PERMITTED_USER_NAMES:
+        raise HTTPException(status_code=400, detail="You're smart, but this user name is invalid.")
 
     # Encrypt user password
     hashed_password = pwd_context.hash(user_register.password)
