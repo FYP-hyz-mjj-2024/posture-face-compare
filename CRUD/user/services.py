@@ -13,7 +13,7 @@ from passlib.context import CryptContext
 from auth import generate_jwt, validate_user, send_verification_email
 from database import get_db
 from CRUD.user.models import User, GRANT_PERMISSION
-from CRUD.user.schemas import UserRegister, UserLoginWithEmail, UserLoginWithName
+from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName
 
 
 router = APIRouter()
@@ -183,20 +183,19 @@ def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     return {"msg": "User deleted successfully.", "user_id": str(user_id)}
 
 
-@router.get("/get_user/")
-def get_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
+@router.post("/get_user/")
+def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
     """
     Get information of a specific user.
-    :param user_id: UUID of the user.
-    :param token: JWT token of the user.
+    :param user_auth: User authentication schema.
     :param db: Database object.
     :return: The information of the user.
     """
-    validate_user(user_id, token)
+    validate_user(user_auth.user_id, user_auth.token)
 
     db_user = find_user_by(attr="id",
-                           val=user_id,
-                           fail_detail=f"User with id {user_id} is not found.",
+                           val=user_auth.user_id,
+                           fail_detail=f"User with id {user_auth.user_id} is not found.",
                            db=db)
 
     return {
