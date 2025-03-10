@@ -13,3 +13,7 @@ class FaceUpload(UserAuth):
 class FacesGet(UserAuth):
     range_from: int
     range_to: int
+
+
+class FaceDelete(UserAuth):
+    face_id: UUID

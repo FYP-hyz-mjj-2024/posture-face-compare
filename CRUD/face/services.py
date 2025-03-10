@@ -3,12 +3,12 @@ import os
 import time
 import base64
 from io import BytesIO
+from typing import cast
 from PIL import Image
 import dlib
 import numpy as np
 import cv2
 import magic
-from typing import Type
 
 # FastAPI server essentials
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -19,8 +19,8 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload, FacesGet
-from CRUD.user.models import WRITE, READ
+from CRUD.face.schemas import FaceUpload, FacesGet, FaceDelete
+from CRUD.user.models import WRITE, READ, DELETE
 from CRUD.user.schemas import UserAuth
 from CRUD.user.services import find_user_by
 from auth import validate_user
@@ -117,14 +117,13 @@ def _guard_db(auth: UserAuth, permission: int, db: Session):
     return True
 
 
-def _check_file_type(blob: bytes, db: Session):
+def _check_file_type(blob: bytes, allowed_types):
     """
     Check for file types from the blob.
     :param blob: The base64 string of the target file.
-    :param db: Database session.
+    :param allowed_types: A list of allowed types.
     :return: True if file type is valid. Otherwise, an exception will be raised.
     """
-    # Check for file types.
     try:
         file_data = base64.b64decode(blob)
     except Exception as e:
@@ -134,7 +133,7 @@ def _check_file_type(blob: bytes, db: Session):
     mime_type = magic.from_buffer(file_data, mime=True)
     file_ext = mime_type.split("/")[-1]
 
-    if file_ext not in ALLOWED_EXTENSIONS:
+    if file_ext not in allowed_types:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Unsupported file type: {file_ext}.")
 
@@ -151,14 +150,13 @@ def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     """
 
     _guard_db(auth=face_upload, permission=WRITE, db=db)
-    _check_file_type(blob=face_upload.blob, db=db)
+    _check_file_type(blob=face_upload.blob, allowed_types=ALLOWED_EXTENSIONS)
 
     face_feature = retrieve_face_feature(face_upload.blob)
 
     if face_feature is None:
-        return {
-            "msg": "No face detected, therefore the image is not saved."
-        }
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"No face detected, therefore the image is not saved.")
 
     new_face = Face(
         uploaded_by=face_upload.user_id,
@@ -204,8 +202,33 @@ def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/find_face/")
-def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+@router.post("/delete_face/")
+def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
+    """
+    Delete a specific face.
+    :param face_delete: Face delete data.
+    :param db: Database Session.
+    :return: A successful message if deleted successful. Otherwise an error will be raised.
+    """
+    _guard_db(auth=face_delete, permission=DELETE, db=db)
+
+    db_face = db.query(Face).filter(
+        cast("ColumnElement[bool]", Face.id == face_delete.id)
+        ).first()
+
+    if db_face is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"The face with id {face_delete.id} does not exist."
+                                   f"It is possible that the face has already been deleted.")
+
+    db.delete(db_face)
+    db.commit()
+
+    return {"msg": f"Face with ID {face_delete.id} has been deleted."}
+
+
+@router.post("/compare_face/")
+def compare_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     """
     Upload a face and find its match.
     :param face_upload: Face blob to upload.
@@ -214,14 +237,13 @@ def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     """
 
     _guard_db(auth=face_upload, permission=WRITE, db=db)
-    _check_file_type(blob=face_upload.blob, db=db)
+    _check_file_type(blob=face_upload.blob, allowed_types=ALLOWED_EXTENSIONS)
 
     face_feature = retrieve_face_feature(face_upload.blob)
 
     if face_feature is None:
-        return {
-            "msg": "No face detected, therefore the image is not saved."
-        }
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"No face detected, therefore this image can't be compared.")
 
     _t_start = time.time()
 
