@@ -8,6 +8,7 @@ import dlib
 import numpy as np
 import cv2
 import magic
+from typing import Type
 
 # FastAPI server essentials
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,8 +19,9 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload
-from CRUD.user.models import WRITE
+from CRUD.face.schemas import FaceUpload, FacesGet
+from CRUD.user.models import WRITE, READ
+from CRUD.user.schemas import UserAuth
 from CRUD.user.services import find_user_by
 from auth import validate_user
 
@@ -39,8 +41,6 @@ predictor = dlib.shape_predictor(os.path.join(os.path.dirname(__file__),
 face_rec_model = dlib.face_recognition_model_v1(os.path.join(os.path.dirname(__file__),
                                                              "models",
                                                              "dlib_face_recognition_resnet_model_v1.dat"))
-
-global cached_faces
 
 cached_faces = []
 
@@ -92,16 +92,17 @@ def compare_faces(feature_1, feature_2) -> float:
     return float(score)
 
 
-def _guard_face_db(face_upload: FaceUpload, db: Session):
+def _guard_db(auth: UserAuth, permission: int, db: Session):
     """
-    Check for user permission and uploaded file types.
-    :param face_upload: FaceUpload schema object.
+    Guard database from unauthorized operations.
+    :param auth: Data objects with user authorization details, including user_id and token.
+    :param permission: The target permission to check to allow this operation.
     :param db: Database session.
-    :return:
+    :return: True if permission is granted. Otherwise, an exception will be raised.
     """
     # Check for user validation.
-    uploader_id = face_upload.user_id
-    uploader_token = face_upload.token
+    uploader_id = auth.user_id
+    uploader_token = auth.token
     validate_user(user_id=uploader_id, token=uploader_token)
 
     db_uploader = find_user_by(attr="id",
@@ -109,13 +110,23 @@ def _guard_face_db(face_upload: FaceUpload, db: Session):
                                fail_detail=f"Upload Face Failed: Can't find uploader {uploader_id}",
                                db=db)
 
-    if not db_uploader.check_permission(permission=WRITE):
+    if not db_uploader.check_permission(permission=permission):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"The user {uploader_id} does not have the permission to upload face.")
+                            detail=f"The user {uploader_id} does not have the permission to access this resource.")
 
+    return True
+
+
+def _check_file_type(blob: bytes, db: Session):
+    """
+    Check for file types from the blob.
+    :param blob: The base64 string of the target file.
+    :param db: Database session.
+    :return: True if file type is valid. Otherwise, an exception will be raised.
+    """
     # Check for file types.
     try:
-        file_data = base64.b64decode(face_upload.blob)
+        file_data = base64.b64decode(blob)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Decode base64 data error: Unable to decode.")
@@ -134,12 +145,13 @@ def _guard_face_db(face_upload: FaceUpload, db: Session):
 def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     """
     Upload a face.
-    :param face_upload: Face image file to upload.
+    :param face_upload: Face upload data.
     :param db: Database session.
     :return: Upload message.
     """
 
-    _guard_face_db(face_upload=face_upload, db=db)
+    _guard_db(auth=face_upload, permission=WRITE, db=db)
+    _check_file_type(blob=face_upload.blob, db=db)
 
     face_feature = retrieve_face_feature(face_upload.blob)
 
@@ -167,6 +179,31 @@ def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/get_faces/")
+def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
+    """
+    Get faces from a given range.
+    :param faces_get: Faces get data.
+    :param db: Database Session.
+    :return:
+    """
+    _guard_db(auth=faces_get, permission=READ, db=db)
+
+    # Process the query range.
+    _limit = faces_get.range_to - faces_get.range_from + 1
+    if _limit < 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid range. The \"to\" should be greater than the \"from\".")
+    _offset = faces_get.range_from
+
+    db_faces = db.query(Face).offset(_offset).limit(_limit).all()
+
+    return {
+        "num_results": len(db_faces),   # In case limit is over total data num.
+        "faces": db_faces
+    }
+
+
 @router.post("/find_face/")
 def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     """
@@ -175,7 +212,9 @@ def find_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     :param db: Database session.
     :return: A list of matched faces' descriptions with scores.
     """
-    _guard_face_db(face_upload=face_upload, db=db)
+
+    _guard_db(auth=face_upload, permission=WRITE, db=db)
+    _check_file_type(blob=face_upload.blob, db=db)
 
     face_feature = retrieve_face_feature(face_upload.blob)
 
