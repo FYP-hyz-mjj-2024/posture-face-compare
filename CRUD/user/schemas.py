@@ -21,3 +21,10 @@ class UserLoginWithName(BaseModel):
 class UserAuth(BaseModel):
     user_id: uuid.UUID
     token: str
+
+
+class PermissionGrant(BaseModel):
+    operator_user_id: uuid.UUID
+    requester_user_id: uuid.UUID
+    token: str
+    permission: int

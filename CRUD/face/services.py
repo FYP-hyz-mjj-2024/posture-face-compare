@@ -3,7 +3,7 @@ import os
 import time
 import base64
 from io import BytesIO
-from typing import cast
+from typing import cast, Union
 from PIL import Image
 import dlib
 import numpy as np
@@ -19,11 +19,11 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload, FacesGet, FaceDelete
-from CRUD.user.models import WRITE, READ, DELETE
+from CRUD.face.schemas import FaceUpload, FacesGet, FaceDelete, FaceFindByID, FaceFindByDesc
+from CRUD.user.models import User, WRITE, READ, DELETE
 from CRUD.user.schemas import UserAuth
-from CRUD.user.services import find_user_by
 from auth import validate_user
+from query import find_by
 
 router = APIRouter()
 
@@ -105,10 +105,11 @@ def _guard_db(auth: UserAuth, permission: int, db: Session):
     uploader_token = auth.token
     validate_user(user_id=uploader_id, token=uploader_token)
 
-    db_uploader = find_user_by(attr="id",
-                               val=uploader_id,
-                               fail_detail=f"Upload Face Failed: Can't find uploader {uploader_id}",
-                               db=db)
+    db_uploader = find_by(orm=User,
+                          attr="id",
+                          val=uploader_id,
+                          fail_detail=f"Failed to verify user {uploader_id}",
+                          db=db)
 
     if not db_uploader.check_permission(permission=permission):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -264,4 +265,30 @@ def compare_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     return {
         "desc_scores": desc_scores,
         "query_time": _t_query
+    }
+
+
+@router.post("/find_face")
+def find_face(face_find: Union[FaceFindByID, FaceFindByDesc], db: Session = Depends(get_db)):
+    """
+    Find a specific face using face_id or description.
+    :param face_find: Face find data.
+    :param db: Database session.
+    :return: If success, returns the found face. Otherwise, an HTTP exception will be raised.
+    """
+    _guard_db(auth=face_find, permission=WRITE, db=db)
+
+    if isinstance(face_find, FaceFindByID):
+        attr = "id"
+    elif isinstance(face_find, FaceFindByDesc):
+        attr = "description"
+    else:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Unprocessable entity.")
+
+    db_face = find_by(orm=Face, attr=attr, val=getattr(face_find, attr),
+                      fail_detail=f"No result for this query.", db=db)
+
+    return {
+        "face": db_face
     }

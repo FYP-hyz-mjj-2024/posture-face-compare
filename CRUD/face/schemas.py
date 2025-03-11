@@ -17,3 +17,11 @@ class FacesGet(UserAuth):
 
 class FaceDelete(UserAuth):
     face_id: UUID
+
+
+class FaceFindByID(UserAuth):
+    face_id: UUID
+
+
+class FaceFindByDesc(UserAuth):
+    description: str

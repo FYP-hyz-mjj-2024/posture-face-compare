@@ -13,44 +13,14 @@ from passlib.context import CryptContext
 from auth import generate_jwt, validate_user, send_verification_email
 from database import get_db
 from CRUD.user.models import User, GRANT_PERMISSION
-from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName
-
+from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName, PermissionGrant
+from query import find_by
 
 router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 PERMITTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined"]
-
-
-def find_user_by(attr: str,
-                 val,
-                 fail_detail: str = "User not found.",
-                 db: Session = Depends()) -> User:
-    """
-    Find user by its attribute. Equivalent to:
-
-    ``SELECT * FROM users WHERE attr = val;``
-
-    :param attr: The column attribute, should be unique.
-    :param val: The match value of the attribute.
-    :param fail_detail: The error message to display when find user failed.
-    :param db: Database Session.
-    :return: The matched user. Otherwise, returns 404.
-    """
-    column = getattr(User, attr, None)
-    if column is None:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Invalid attribute access of {attr}.")
-
-    db_user = db.query(User).filter(
-        cast("ColumnElement[bool]", column == val)
-    ).first()
-
-    if not db_user or not isinstance(db_user, User):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=fail_detail)
-
-    return db_user
 
 
 @router.post("/register/")
@@ -106,10 +76,11 @@ def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id=user_id, token=token)
 
-    db_user = find_user_by(attr="id",
-                           val=user_id,
-                           fail_detail=f"User with id {user_id} is not found.",
-                           db=db)
+    db_user = find_by(orm=User,
+                      attr="id",
+                      val=user_id,
+                      fail_detail=f"User with id {user_id} is not found.",
+                      db=db)
 
     if db_user.is_verified:
         raise HTTPException(status_code=400, detail=f"Email already verified.")
@@ -172,10 +143,11 @@ def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     validate_user(user_id, token)
 
-    db_user = find_user_by(attr="id",
-                           val=user_id,
-                           fail_detail=f"User with id {user_id} is not found.",
-                           db=db)
+    db_user = find_by(orm=User,
+                      attr="id",
+                      val=user_id,
+                      fail_detail=f"User with id {user_id} is not found.",
+                      db=db)
 
     db.delete(db_user)
     db.commit()
@@ -193,10 +165,11 @@ def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
     """
     validate_user(user_auth.user_id, user_auth.token)
 
-    db_user = find_user_by(attr="id",
-                           val=user_auth.user_id,
-                           fail_detail=f"User with id {user_auth.user_id} is not found.",
-                           db=db)
+    db_user = find_by(orm=User,
+                      attr="id",
+                      val=user_auth.user_id,
+                      fail_detail=f"User with id {user_auth.user_id} is not found.",
+                      db=db)
 
     return {
         "user_id": str(db_user.id),
@@ -222,17 +195,11 @@ def get_users(query: str = "", db: Session = Depends(get_db)):
 
 
 @router.post("/grant_user/")
-def grant_permission(operator_user_id: uuid.UUID,
-                     requester_user_id: uuid.UUID,
-                     token: str,
-                     permission: int,
+def grant_permission(permission_grant: PermissionGrant,
                      db: Session = Depends(get_db)):
     """
     The ability of a superuser to grant other user access.
-    :param operator_user_id: The operator's user UUID.
-    :param requester_user_id: The permission applier's user UUID.
-    :param token: The operator's JWT token.
-    :param permission: Permission that the operator wants to grant.
+    :param permission_grant: Permission grant data.
     :param db: Database object.
     :return: Result of permission granting.
     """
@@ -240,33 +207,35 @@ def grant_permission(operator_user_id: uuid.UUID,
     '''
     Operator
     '''
-    validate_user(operator_user_id, token)
+    validate_user(permission_grant.operator_user_id, permission_grant.token)
 
-    db_operator_user = find_user_by(attr="id",
-                                    val=operator_user_id,
-                                    fail_detail=f"Operator {operator_user_id} not found.",
-                                    db=db)
+    db_operator_user = find_by(orm=User,
+                               attr="id",
+                               val=permission_grant.operator_user_id,
+                               fail_detail=f"Operator {permission_grant.operator_user_id} not found.",
+                               db=db)
 
     # Operator has no permission to grant other's access.
     if not db_operator_user.check_permission(permission=GRANT_PERMISSION):
-        raise HTTPException(status_code=403, detail=f"Operator {requester_user_id} "
+        raise HTTPException(status_code=403, detail=f"Operator {permission_grant.requester_user_id} "
                                                     f"is not allowed to grant permission.")
 
     '''
     Permission Applier
     '''
-    db_requester_user = find_user_by(attr="id",
-                                     val=requester_user_id,
-                                     fail_detail=f"Requestor {requester_user_id} not found.",
-                                     db=db)
+    db_requester_user = find_by(orm=User,
+                                attr="id",
+                                val=permission_grant.requester_user_id,
+                                fail_detail=f"Requestor {permission_grant.requester_user_id} not found.",
+                                db=db)
 
-    db_requester_user.grant_permission(permission)
+    db_requester_user.grant_permission(permission_grant.permission)
     db.commit()
 
     return {
         "msg": "Grant permission successful.",
-        "user_id": str(requester_user_id),
-        "permission": permission,
+        "user_id": str(permission_grant.requester_user_id),
+        "permission": permission_grant.permission,
     }
 
 
