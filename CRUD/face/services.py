@@ -194,10 +194,13 @@ def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
                             detail="Invalid range. The \"to\" should be greater than the \"from\".")
     _offset = faces_get.range_from
 
+    total_num = db.query(Face).count()
+
     db_faces = db.query(Face).offset(_offset).limit(_limit).all()
 
     return {
-        "num_results": len(db_faces),   # In case limit is over total data num.
+        "num_total": total_num,
+        "num_this_page": len(db_faces),   # In case limit is over total data num.
         "faces": db_faces
     }
 
