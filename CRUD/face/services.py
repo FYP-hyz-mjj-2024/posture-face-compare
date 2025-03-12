@@ -256,9 +256,15 @@ def compare_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
         db_faces = db.query(Face).all()
         cached_faces = [(db_face.description, db_face.feature) for db_face in db_faces]
 
-    desc_scores = [(cached_feature[0], compare_faces(face_feature, cached_feature[1]))
-                   for cached_feature in cached_faces]
-    desc_scores = sorted(desc_scores, key=lambda obj: obj[1], reverse=True)
+    # desc_scores = [(cached_feature[0], compare_faces(face_feature, cached_feature[1]))
+    #                for cached_feature in cached_faces]
+
+    desc_scores = [{
+        "description": cached_face[0],
+        "score": compare_faces(face_feature, cached_face[1]),
+    } for cached_face in cached_faces]
+
+    desc_scores = sorted(desc_scores, key=lambda obj: obj["score"], reverse=True)
 
     _t_query = time.time() - _t_start
 
