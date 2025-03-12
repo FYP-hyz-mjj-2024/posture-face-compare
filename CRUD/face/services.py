@@ -217,18 +217,18 @@ def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
     _guard_db(auth=face_delete, permission=DELETE, db=db)
 
     db_face = db.query(Face).filter(
-        cast("ColumnElement[bool]", Face.id == face_delete.id)
+        cast("ColumnElement[bool]", Face.id == face_delete.face_id)
         ).first()
 
     if db_face is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"The face with id {face_delete.id} does not exist."
+                            detail=f"The face with id {face_delete.face_id} does not exist."
                                    f"It is possible that the face has already been deleted.")
 
     db.delete(db_face)
     db.commit()
 
-    return {"msg": f"Face with ID {face_delete.id} has been deleted."}
+    return {"msg": f"Face with ID {face_delete.face_id} has been deleted."}
 
 
 @router.post("/compare_face/")
