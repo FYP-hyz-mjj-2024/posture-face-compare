@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload, FacesGet, FaceDelete, FaceFindByID, FaceFindByDesc
+from CRUD.face.schemas import FaceUpload, FacesGet, FaceDelete, FaceFindByID, FaceFindByDesc, FaceCompare
 from CRUD.user.models import User, WRITE, READ, DELETE
 from CRUD.user.schemas import UserAuth
 from auth import validate_user
@@ -232,18 +232,18 @@ def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
 
 
 @router.post("/compare_face/")
-def compare_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
     """
     Upload a face and find its match.
-    :param face_upload: Face blob to upload.
+    :param face_compare: Face blob to upload.
     :param db: Database session.
     :return: A list of matched faces' descriptions with scores.
     """
 
-    _guard_db(auth=face_upload, permission=WRITE, db=db)
-    _check_file_type(blob=face_upload.blob, allowed_types=ALLOWED_EXTENSIONS)
+    _guard_db(auth=face_compare, permission=WRITE, db=db)
+    _check_file_type(blob=face_compare.blob, allowed_types=ALLOWED_EXTENSIONS)
 
-    face_feature = retrieve_face_feature(face_upload.blob)
+    face_feature = retrieve_face_feature(face_compare.blob)
 
     if face_feature is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,

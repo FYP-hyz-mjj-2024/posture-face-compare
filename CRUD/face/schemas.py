@@ -25,3 +25,7 @@ class FaceFindByID(UserAuth):
 
 class FaceFindByDesc(UserAuth):
     description: str
+
+
+class FaceCompare(UserAuth):
+    blob: bytes
