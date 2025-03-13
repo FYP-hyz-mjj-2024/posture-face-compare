@@ -1,3 +1,5 @@
+1. Install postgresql
+
 stop database
 
 `pg_ctl -D "D:\ProgramFiles\PostgreSQL\17\data" stop`
