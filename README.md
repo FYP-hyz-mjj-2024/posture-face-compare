@@ -1,5 +1,15 @@
-1. Install postgresql
+# Server
 
+1. Install postgresql
+sudo -u postgres psql
+sudo systemctl restart postgresql
+2. cmake, build-essential
+3. conda
+4. conda env
+5. requirements.txt
+6. magic, opencv-headless
+
+# Local
 stop database
 
 `pg_ctl -D "D:\ProgramFiles\PostgreSQL\17\data" stop`
