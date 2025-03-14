@@ -63,8 +63,11 @@ def retrieve_face_feature(blob):
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+    # Adaptive Histogram Equalization: Detect performance under low resolution.
+    image_gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(image_gray)
+
     # Retrieve faces
-    faces = face_detector(image_gray)
+    faces = face_detector(image_gray, upsample_num_times=2)
 
     if len(faces) == 0:
         return None
