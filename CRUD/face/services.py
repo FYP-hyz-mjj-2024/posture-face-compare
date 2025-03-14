@@ -85,7 +85,12 @@ def retrieve_face_feature(blob):
 def compare_faces(feature_1, feature_2) -> float:
     """
     Calculate the inverse Euclidean distance of two face features,
-    each being a 128-dimensional vector.
+    each being a 128-dimensional vector. If the score of the two
+    faces is higher than 1.7 (Euclidean distance smaller than 0.6),
+    we can roughly decide that it is the same person.
+
+    Source: https://dlib.net/face_recognition.py.html
+
     :param feature_1: First feature.
     :param feature_2: Second feature.
     :return: The inverse Euclidean distance as a similarity score.
