@@ -15,6 +15,11 @@ class FacesGet(UserAuth):
     range_to: int
 
 
+class FaceUpdate(UserAuth):
+    face_id: UUID
+    description: str
+
+
 class FaceDelete(UserAuth):
     face_id: UUID
 

@@ -19,8 +19,8 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload, FacesGet, FaceDelete, FaceFindByID, FaceFindByDesc, FaceCompare
-from CRUD.user.models import User, WRITE, READ, DELETE
+from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FaceFindByID, FaceFindByDesc, FaceCompare
+from CRUD.user.models import User, WRITE, READ, DELETE, UPDATE
 from CRUD.user.schemas import UserAuth
 from auth import validate_user
 from query import find_by
@@ -214,13 +214,36 @@ def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/update_face/")
+def update_face(face_update: FaceUpdate, db: Session = Depends(get_db)):
+    """
+    Update a specific face.
+    :param face_update: Face update data. face_id, description
+    :param db: Database Session.
+    :return: A successful message if updated successful. Otherwise, an error will be raised.
+    """
+    _guard_db(auth=face_update, permission=UPDATE, db=db)
+    face_to_update = find_by(orm=Face, attr="id", val=face_update.face_id,
+                             fail_detail=f"Update failed: No face with id {face_update.face_id} found.",
+                             db=db)
+
+    face_to_update.description = face_update.description
+    db.commit()
+    db.refresh(face_to_update)
+
+    return {
+        "msg": f"Face with id {face_update.face_id} has been updated successfully.",
+        "updated_face": face_update.face_id
+    }
+
+
 @router.post("/delete_face/")
 def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
     """
     Delete a specific face.
     :param face_delete: Face delete data.
     :param db: Database Session.
-    :return: A successful message if deleted successful. Otherwise an error will be raised.
+    :return: A successful message if deleted successful. Otherwise, an error will be raised.
     """
     _guard_db(auth=face_delete, permission=DELETE, db=db)
 
