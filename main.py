@@ -19,7 +19,7 @@ SERVER_HOST = os.getenv("SERVER_HOST")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],    # Allow specific requests
+    allow_origins=["http://localhost:3000"],    # Allow specific requests
     allow_credentials=True,
     allow_methods=["*"],    # Allow all HTTP methods
     allow_headers=["*"],    # Allow all HTTP headers
