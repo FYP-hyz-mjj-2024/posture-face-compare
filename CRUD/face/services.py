@@ -42,7 +42,10 @@ face_rec_model = dlib.face_recognition_model_v1(os.path.join(os.path.dirname(__f
                                                              "models",
                                                              "dlib_face_recognition_resnet_model_v1.dat"))
 
+# Simple caching like redis...
 cached_faces = []
+cache_settle_time = -np.inf
+CACHE_TTL = 30
 
 
 def retrieve_face_feature(blob):
@@ -283,7 +286,7 @@ def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
     _t_start = time.time()
 
     global cached_faces
-    if len(cached_faces) == 0:
+    if len(cached_faces) == 0 or time.time() - cache_settle_time > CACHE_TTL:
         db_faces = db.query(Face).all()
         cached_faces = [(db_face.description, db_face.feature) for db_face in db_faces]
 
