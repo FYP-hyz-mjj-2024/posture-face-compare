@@ -308,7 +308,7 @@ def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/find_face")
+@router.post("/find_face/")
 def find_face(face_find: Union[FaceFindByID, FaceFindByDesc], db: Session = Depends(get_db)):
     """
     Find a specific face using face_id or description.
