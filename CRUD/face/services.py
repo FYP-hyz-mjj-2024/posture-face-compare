@@ -14,6 +14,7 @@ import magic
 from fastapi import APIRouter, Depends, HTTPException, status
 
 # PostgreSQL database connection
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 # Locals
@@ -208,7 +209,7 @@ def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
 
     total_num = db.query(Face).count()
 
-    db_faces = db.query(Face).offset(_offset).limit(_limit).all()
+    db_faces = db.query(Face).order_by(desc(Face.uploaded_at)).offset(_offset).limit(_limit).all()
 
     return {
         "num_total": total_num,
