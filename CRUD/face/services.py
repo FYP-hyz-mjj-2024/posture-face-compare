@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FaceFindByID, FaceFindByDesc, FaceCompare
+from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FaceFindByID, FacesFindByDesc, FaceCompare
 from CRUD.user.models import User, WRITE, READ, DELETE, UPDATE
 from CRUD.user.schemas import UserAuth
 from auth import validate_user
@@ -308,8 +308,8 @@ def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/find_face/")
-def find_face(face_find: Union[FaceFindByID, FaceFindByDesc], db: Session = Depends(get_db)):
+@router.post("/find_faces/")
+def find_faces(face_find: FacesFindByDesc, db: Session = Depends(get_db)):
     """
     Find a specific face using face_id or description.
     :param face_find: Face find data.
@@ -318,17 +318,17 @@ def find_face(face_find: Union[FaceFindByID, FaceFindByDesc], db: Session = Depe
     """
     _guard_db(auth=face_find, permission=WRITE, db=db)
 
-    if isinstance(face_find, FaceFindByID):
-        attr = "id"
-    elif isinstance(face_find, FaceFindByDesc):
-        attr = "description"
-    else:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Unprocessable entity.")
+    # db_face = find_by(orm=Face, attr=attr, val=getattr(face_find, attr),
+    #                   fail_detail=f"No result for this query.", db=db)
 
-    db_face = find_by(orm=Face, attr=attr, val=getattr(face_find, attr),
-                      fail_detail=f"No result for this query.", db=db)
+    db_faces = db.query(Face).filter(
+        Face.description.ilike(f"%{face_find.description}%")
+    ).all()
+
+    if not db_faces:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="No result for this query.")
 
     return {
-        "face": db_face
+        "faces": db_faces
     }

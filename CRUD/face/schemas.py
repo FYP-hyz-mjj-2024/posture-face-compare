@@ -28,7 +28,7 @@ class FaceFindByID(UserAuth):
     face_id: UUID
 
 
-class FaceFindByDesc(UserAuth):
+class FacesFindByDesc(UserAuth):
     description: str
 
 
