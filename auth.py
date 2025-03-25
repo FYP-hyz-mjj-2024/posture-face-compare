@@ -124,8 +124,8 @@ def send_verification_email(email_to: str, user_id: str, token: str):
     msg.attach(MIMEText(html_content, "html", "utf-8"))
 
     try:
-        server = smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT))
-        server.starttls()
+        server = smtplib.SMTP_SSL(SMTP_SERVER, int(SMTP_PORT))
+        # server.starttls()
         server.login(SMTP_USERNAME, SMTP_PASSWORD)
         server.sendmail(EMAIL_FROM, email_to, msg.as_string())
         server.quit()
