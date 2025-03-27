@@ -178,7 +178,8 @@ def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
         "user_id": str(db_user.id),
         "created_at": str(db_user.created_at),
         "email": db_user.email,
-        "name": db_user.name
+        "name": db_user.name,
+        "permissions": db_user.permissions
     }
 
 
