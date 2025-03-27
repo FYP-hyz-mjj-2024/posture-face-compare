@@ -37,7 +37,10 @@ def register_user(user_register: UserRegister,
     ).first()
 
     if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered.")
+        # User exists, resend email.
+        token = generate_jwt(db_user.id)
+        send_verification_email(email_to=db_user.email, user_id=db_user.id, token=token)
+        raise HTTPException(status_code=400, detail="Email already registered. Re-sending email.")
 
     if user_register.name in PERMITTED_USER_NAMES:
         raise HTTPException(status_code=400, detail="You're smart, but this user name is invalid.")
