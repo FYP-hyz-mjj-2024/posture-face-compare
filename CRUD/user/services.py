@@ -14,7 +14,7 @@ from passlib.context import CryptContext
 from auth import generate_jwt, validate_user, send_verification_email
 from database import get_db
 from CRUD.user.models import User, GRANT_PERMISSION
-from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName, PermissionGrant, UsersGet, \
+from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName, PermissionEdit, UsersGet, \
     EmailVerifySuper
 from query import find_by, _guard_db
 
@@ -260,9 +260,9 @@ def find_users(query: str = "", db: Session = Depends(get_db)):
     return db_users
 
 
-@router.post("/grant_permission/")
-def grant_permission(permission_grant: PermissionGrant,
-                     db: Session = Depends(get_db)):
+@router.post("/edit_permission/")
+def edit_permission(permission_grant: PermissionEdit,
+                    db: Session = Depends(get_db)):
     """
     The ability of a superuser to grant other user access.
     :param permission_grant: Permission grant data.
@@ -295,7 +295,11 @@ def grant_permission(permission_grant: PermissionGrant,
                                 fail_detail=f"Requestor {permission_grant.requester_user_id} not found.",
                                 db=db)
 
-    db_requester_user.grant_permission(permission_grant.permission)
+    if permission_grant.grant:
+        db_requester_user.grant_permission(permission_grant.permission)
+    else:
+        db_requester_user.revoke_permission(permission_grant.permission)
+
     db.commit()
 
     return {
@@ -303,6 +307,3 @@ def grant_permission(permission_grant: PermissionGrant,
         "user_id": str(permission_grant.requester_user_id),
         "permission": permission_grant.permission,
     }
-
-
-

@@ -27,7 +27,8 @@ class EmailVerifySuper(UserAuth):
     verify_user_id: uuid.UUID
 
 
-class PermissionGrant(BaseModel):
+class PermissionEdit(BaseModel):
+    grant: bool
     operator_user_id: uuid.UUID
     requester_user_id: uuid.UUID
     token: str
