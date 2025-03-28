@@ -260,7 +260,7 @@ def find_users(query: str = "", db: Session = Depends(get_db)):
     return db_users
 
 
-@router.post("/grant_user/")
+@router.post("/grant_permission/")
 def grant_permission(permission_grant: PermissionGrant,
                      db: Session = Depends(get_db)):
     """
