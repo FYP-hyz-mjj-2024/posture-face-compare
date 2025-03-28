@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import uuid
 
 # PostgreSQL database connection
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 # Information Security
@@ -13,8 +14,9 @@ from passlib.context import CryptContext
 from auth import generate_jwt, validate_user, send_verification_email
 from database import get_db
 from CRUD.user.models import User, GRANT_PERMISSION
-from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName, PermissionGrant
-from query import find_by
+from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName, PermissionGrant, UsersGet, \
+    EmailVerifySuper
+from query import find_by, _guard_db
 
 router = APIRouter()
 
@@ -92,6 +94,28 @@ def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"msg": "Email verified successfully."}
+
+
+@router.post("/verify_email_super/")
+def verify_email_super(email_verify_super: EmailVerifySuper, db=Depends(get_db)):
+    """
+    Manual email verification by superuser.
+    :param email_verify_super: Email verification data.
+    :param db: Database session.
+    :return:
+    """
+    _guard_db(auth=email_verify_super, permission=GRANT_PERMISSION, db=db)
+    db_user = find_by(orm=User,
+                      attr="id",
+                      val=email_verify_super.verify_user_id,
+                      fail_detail=f"Can't verify user with id {email_verify_super}: "
+                                  f"User not found.",
+                      db=db)
+
+    db_user.verify_email()
+    db.commit()
+
+    return {"msg": "Email verified by super user successfully."}
 
 
 @router.post("/login/")
@@ -184,7 +208,45 @@ def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
 
 
 @router.post("/get_users/")
-def get_users(query: str = "", db: Session = Depends(get_db)):
+def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
+    """
+    Get users from a given range.
+    :param users_get: Users get data.
+    :param db: Database session.
+    :return:
+    """
+
+    _guard_db(auth=users_get, permission=GRANT_PERMISSION, db=db)
+
+    _limit = users_get.range_to - users_get.range_from + 1
+
+    if _limit < 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid range.")
+
+    _offset = users_get.range_from
+
+    total_num = db.query(User).count()
+
+    db_users = db.query(User).order_by(desc(User.created_at)).offset(_offset).limit(_limit).all()
+
+    return {
+        "num_total": total_num,
+        "num_this_page": len(db_users),
+        "users": [{
+                    "user_id": str(db_user.id),
+                    "created_at": str(db_user.created_at),
+                    "email": db_user.email,
+                    "name": db_user.name,
+                    "permissions": db_user.permissions,
+                    "password_hash": str(db_user.password_hash),
+                    "is_verified": db_user.is_verified
+                  } for db_user in db_users]
+    }
+
+
+@router.post("/find_users/")
+def find_users(query: str = "", db: Session = Depends(get_db)):
     """
     Get a list of users with a search query. If the query is not given,
     all users are returned, i.e., matches the empty query.

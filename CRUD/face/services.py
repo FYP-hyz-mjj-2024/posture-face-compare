@@ -3,7 +3,7 @@ import os
 import time
 import base64
 from io import BytesIO
-from typing import cast, Union
+from typing import cast
 from PIL import Image
 import dlib
 import numpy as np
@@ -20,11 +20,9 @@ from sqlalchemy.orm import Session
 # Locals
 from database import get_db
 from CRUD.face.models import Face
-from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FaceFindByID, FacesFindByDesc, FaceCompare
-from CRUD.user.models import User, WRITE, READ, DELETE, UPDATE
-from CRUD.user.schemas import UserAuth
-from auth import validate_user
-from query import find_by
+from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FacesFindByDesc, FaceCompare
+from CRUD.user.models import WRITE, READ, DELETE, UPDATE
+from query import find_by, _guard_db
 
 router = APIRouter()
 
@@ -102,32 +100,6 @@ def compare_faces(feature_1, feature_2) -> float:
     f1, f2 = np.array(feature_1), np.array(feature_2)
     score = 1 / (np.linalg.norm(f1 - f2) + np.finfo(np.float32).eps)
     return float(score)
-
-
-def _guard_db(auth: UserAuth, permission: int, db: Session):
-    """
-    Guard database from unauthorized operations.
-    :param auth: Data objects with user authorization details, including user_id and token.
-    :param permission: The target permission to check to allow this operation.
-    :param db: Database session.
-    :return: True if permission is granted. Otherwise, an exception will be raised.
-    """
-    # Check for user validation.
-    uploader_id = auth.user_id
-    uploader_token = auth.token
-    validate_user(user_id=uploader_id, token=uploader_token)
-
-    db_uploader = find_by(orm=User,
-                          attr="id",
-                          val=uploader_id,
-                          fail_detail=f"Failed to verify user {uploader_id}",
-                          db=db)
-
-    if not db_uploader.check_permission(permission=permission):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"The user {uploader_id} does not have the permission to access this resource.")
-
-    return True
 
 
 def _check_file_type(blob: bytes, allowed_types):

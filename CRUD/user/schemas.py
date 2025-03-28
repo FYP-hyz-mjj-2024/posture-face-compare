@@ -23,8 +23,17 @@ class UserAuth(BaseModel):
     token: str
 
 
+class EmailVerifySuper(UserAuth):
+    verify_user_id: uuid.UUID
+
+
 class PermissionGrant(BaseModel):
     operator_user_id: uuid.UUID
     requester_user_id: uuid.UUID
     token: str
     permission: int
+
+
+class UsersGet(UserAuth):
+    range_from: int
+    range_to: int

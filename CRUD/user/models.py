@@ -74,6 +74,12 @@ class User(Base):
                          default=(READ | WRITE | DELETE | UPDATE),
                          nullable=False)
 
+    def verify_email(self):
+        """
+        Verify the email of this user.
+        """
+        self.is_verified = True
+
     def check_permission(self, permission: int) -> bool:
         """
         Check if the user have a specific permission.

@@ -1,19 +1,15 @@
 # FastAPI server essentials
-from typing import Union, cast, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-import uuid
+from typing import cast
+from fastapi import  Depends, HTTPException, status
 
 # PostgreSQL database connection
 from sqlalchemy.orm import Session
 
-# Information Security
-from passlib.context import CryptContext
-
 # Locals
-from auth import generate_jwt, validate_user, send_verification_email
+from auth import validate_user
 from database import get_db
-from CRUD.user.models import User, GRANT_PERMISSION
-from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName
+from CRUD.user.models import User
+from CRUD.user.schemas import UserAuth
 from database import Base
 
 
@@ -49,3 +45,29 @@ def find_by(orm: Base,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=fail_detail)
 
     return db_orm
+
+
+def _guard_db(auth: UserAuth, permission: int, db: Session):
+    """
+    Guard database from unauthorized operations.
+    :param auth: Data objects with user authorization details, including user_id and token.
+    :param permission: The target permission to check to allow this operation.
+    :param db: Database session.
+    :return: True if permission is granted. Otherwise, an exception will be raised.
+    """
+    # Check for user validation.
+    uploader_id = auth.user_id
+    uploader_token = auth.token
+    validate_user(user_id=uploader_id, token=uploader_token)
+
+    db_uploader = find_by(orm=User,
+                          attr="id",
+                          val=uploader_id,
+                          fail_detail=f"Failed to verify user {uploader_id}",
+                          db=db)
+
+    if not db_uploader.check_permission(permission=permission):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"The user {uploader_id} does not have the permission to access this resource.")
+
+    return True
