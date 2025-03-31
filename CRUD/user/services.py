@@ -26,8 +26,8 @@ PERMITTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined"]
 
 
 @router.post("/register/")
-def register_user(user_register: UserRegister,
-                  db: Session = Depends(get_db)):
+async def register_user(user_register: UserRegister,
+                        db: Session = Depends(get_db)):
     """
     Register a new user.
     :param user_register: User register schema class.
@@ -71,7 +71,7 @@ def register_user(user_register: UserRegister,
 
 
 @router.get("/verify_email/")
-def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
+async def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     New user email verification.
     :param user_id: UUID of the new user.
@@ -97,7 +97,7 @@ def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/verify_email_super/")
-def verify_email_super(email_verify_super: EmailVerifySuper, db=Depends(get_db)):
+async def verify_email_super(email_verify_super: EmailVerifySuper, db=Depends(get_db)):
     """
     Manual email verification by superuser.
     :param email_verify_super: Email verification data.
@@ -119,7 +119,7 @@ def verify_email_super(email_verify_super: EmailVerifySuper, db=Depends(get_db))
 
 
 @router.post("/login/")
-def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
+async def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
                db: Session = Depends(get_db)):
     """
     Login existing user.
@@ -160,7 +160,7 @@ def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
 
 
 @router.post("/delete_account/")
-def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
+async def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
     """
     Delete existing user.
     :param user_id: UUID of the user.
@@ -183,7 +183,7 @@ def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
 
 
 @router.post("/get_user/")
-def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
+async def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
     """
     Get information of a specific user.
     :param user_auth: User authentication schema.
@@ -208,7 +208,7 @@ def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
 
 
 @router.post("/get_users/")
-def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
+async def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
     """
     Get users from a given range.
     :param users_get: Users get data.
@@ -246,7 +246,7 @@ def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
 
 
 @router.post("/find_users/")
-def find_users(query: str = "", db: Session = Depends(get_db)):
+async def find_users(query: str = "", db: Session = Depends(get_db)):
     """
     Get a list of users with a search query. If the query is not given,
     all users are returned, i.e., matches the empty query.
@@ -261,11 +261,11 @@ def find_users(query: str = "", db: Session = Depends(get_db)):
 
 
 @router.post("/edit_permission/")
-def edit_permission(permission_grant: PermissionEdit,
-                    db: Session = Depends(get_db)):
+async def edit_permission(permission_edit: PermissionEdit,
+                          db: Session = Depends(get_db)):
     """
     The ability of a superuser to grant other user access.
-    :param permission_grant: Permission grant data.
+    :param permission_edit: Permission grant data.
     :param db: Database object.
     :return: Result of permission granting.
     """
@@ -273,17 +273,17 @@ def edit_permission(permission_grant: PermissionEdit,
     '''
     Operator
     '''
-    validate_user(permission_grant.operator_user_id, permission_grant.token)
+    validate_user(permission_edit.operator_user_id, permission_edit.token)
 
     db_operator_user = find_by(orm=User,
                                attr="id",
-                               val=permission_grant.operator_user_id,
-                               fail_detail=f"Operator {permission_grant.operator_user_id} not found.",
+                               val=permission_edit.operator_user_id,
+                               fail_detail=f"Operator {permission_edit.operator_user_id} not found.",
                                db=db)
 
     # Operator has no permission to grant other's access.
     if not db_operator_user.check_permission(permission=GRANT_PERMISSION):
-        raise HTTPException(status_code=403, detail=f"Operator {permission_grant.requester_user_id} "
+        raise HTTPException(status_code=403, detail=f"Operator {permission_edit.requester_user_id} "
                                                     f"is not allowed to grant permission.")
 
     '''
@@ -291,19 +291,19 @@ def edit_permission(permission_grant: PermissionEdit,
     '''
     db_requester_user = find_by(orm=User,
                                 attr="id",
-                                val=permission_grant.requester_user_id,
-                                fail_detail=f"Requestor {permission_grant.requester_user_id} not found.",
+                                val=permission_edit.requester_user_id,
+                                fail_detail=f"Requestor {permission_edit.requester_user_id} not found.",
                                 db=db)
 
-    if permission_grant.grant:
-        db_requester_user.grant_permission(permission_grant.permission)
+    if permission_edit.grant:
+        db_requester_user.grant_permission(permission_edit.permission)
     else:
-        db_requester_user.revoke_permission(permission_grant.permission)
+        db_requester_user.revoke_permission(permission_edit.permission)
 
     db.commit()
 
     return {
         "msg": "Grant permission successful.",
-        "user_id": str(permission_grant.requester_user_id),
-        "permission": permission_grant.permission,
+        "user_id": str(permission_edit.requester_user_id),
+        "permission": permission_edit.permission,
     }

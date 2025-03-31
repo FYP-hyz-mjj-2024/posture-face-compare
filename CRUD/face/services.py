@@ -126,7 +126,7 @@ def _check_file_type(blob: bytes, allowed_types):
 
 
 @router.post("/upload_face/")
-def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+async def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
     """
     Upload a face.
     :param face_upload: Face upload data.
@@ -163,7 +163,7 @@ def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
 
 
 @router.post("/get_faces/")
-def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
+async def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
     """
     Get faces from a given range.
     :param faces_get: Faces get data.
@@ -191,7 +191,7 @@ def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
 
 
 @router.post("/update_face/")
-def update_face(face_update: FaceUpdate, db: Session = Depends(get_db)):
+async def update_face(face_update: FaceUpdate, db: Session = Depends(get_db)):
     """
     Update a specific face.
     :param face_update: Face update data. face_id, description
@@ -214,7 +214,7 @@ def update_face(face_update: FaceUpdate, db: Session = Depends(get_db)):
 
 
 @router.post("/delete_face/")
-def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
+async def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
     """
     Delete a specific face.
     :param face_delete: Face delete data.
@@ -239,7 +239,7 @@ def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
 
 
 @router.post("/compare_face/")
-def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
+async def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
     """
     Upload a face and find its match.
     :param face_compare: Face blob to upload.
@@ -282,7 +282,7 @@ def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
 
 
 @router.post("/find_faces/")
-def find_faces(face_find: FacesFindByDesc, db: Session = Depends(get_db)):
+async def find_faces(face_find: FacesFindByDesc, db: Session = Depends(get_db)):
     """
     Find a specific face using face_id or description.
     :param face_find: Face find data.
