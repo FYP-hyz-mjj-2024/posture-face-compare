@@ -14,8 +14,9 @@ from passlib.context import CryptContext
 from auth import generate_jwt, validate_user, send_verification_email
 from database import get_db
 from CRUD.user.models import User, GRANT_PERMISSION
-from CRUD.user.schemas import UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName, PermissionEdit, UsersGet, \
-    EmailVerifySuper
+from CRUD.user.schemas import (
+    UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName,
+    PermissionEdit, UsersGet, EmailVerifySuper, UsersFindByName)
 from query import find_by, _guard_db
 
 router = APIRouter()
@@ -119,8 +120,9 @@ async def verify_email_super(email_verify_super: EmailVerifySuper, db=Depends(ge
 
 
 @router.post("/login/")
-async def login_user(user_login: Union[UserLoginWithEmail, UserLoginWithName],
-               db: Session = Depends(get_db)):
+async def login_user(
+        user_login: Union[UserLoginWithEmail, UserLoginWithName],
+        db: Session = Depends(get_db)):
     """
     Login existing user.
     :param user_login: User login schema class.
@@ -210,7 +212,7 @@ async def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
 @router.post("/get_users/")
 async def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
     """
-    Get users from a given range.
+    Superuser function: Get users from a given range.
     :param users_get: Users get data.
     :param db: Database session.
     :return:
@@ -228,7 +230,9 @@ async def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
 
     total_num = db.query(User).count()
 
-    db_users = db.query(User).order_by(desc(User.created_at)).offset(_offset).limit(_limit).all()
+    db_users = db.query(User).order_by(desc(
+        cast("ColumnElement[_T]", User.created_at)
+    )).offset(_offset).limit(_limit).all()
 
     return {
         "num_total": total_num,
@@ -246,25 +250,35 @@ async def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
 
 
 @router.post("/find_users/")
-async def find_users(query: str = "", db: Session = Depends(get_db)):
+async def find_users(users_find: UsersFindByName, db: Session = Depends(get_db)):
     """
     Get a list of users with a search query. If the query is not given,
     all users are returned, i.e., matches the empty query.
-    :param query: The search query.
+    :param users_find: Users find data.
     :param db: Database object.
     :return: A list of users that matches the query.
     """
 
-    db_users = db.query(User).filter(User.name.like(f"%{query}%")).all()
+    db_users = db.query(User).filter(User.name.ilike(f"%{users_find.query}%")).all()
 
-    return db_users
+    return {
+        "users": [{
+                    "user_id": str(db_user.id),
+                    "created_at": str(db_user.created_at),
+                    "email": db_user.email,
+                    "name": db_user.name,
+                    "permissions": db_user.permissions,
+                    "password_hash": str(db_user.password_hash),
+                    "is_verified": db_user.is_verified
+                  } for db_user in db_users]
+    }
 
 
 @router.post("/edit_permission/")
 async def edit_permission(permission_edit: PermissionEdit,
                           db: Session = Depends(get_db)):
     """
-    The ability of a superuser to grant other user access.
+    Superuser function: To grant or revoke other user's permission of access, one at a time.
     :param permission_edit: Permission grant data.
     :param db: Database object.
     :return: Result of permission granting.

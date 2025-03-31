@@ -38,3 +38,7 @@ class PermissionEdit(BaseModel):
 class UsersGet(UserAuth):
     range_from: int
     range_to: int
+
+
+class UsersFindByName(UserAuth):
+    query: str

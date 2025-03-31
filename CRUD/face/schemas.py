@@ -29,7 +29,7 @@ class FaceFindByID(UserAuth):
 
 
 class FacesFindByDesc(UserAuth):
-    description: str
+    query: str
 
 
 class FaceCompare(UserAuth):

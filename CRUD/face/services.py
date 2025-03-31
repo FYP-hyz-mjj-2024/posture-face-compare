@@ -295,7 +295,7 @@ async def find_faces(face_find: FacesFindByDesc, db: Session = Depends(get_db)):
     #                   fail_detail=f"No result for this query.", db=db)
 
     db_faces = db.query(Face).filter(
-        Face.description.ilike(f"%{face_find.description}%")
+        Face.description.ilike(f"%{face_find.query}%")
     ).all()
 
     if not db_faces:
