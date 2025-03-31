@@ -22,7 +22,7 @@ router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-PERMITTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined"]
+RESTRICTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined", "postgres"]
 
 
 @router.post("/register/")
@@ -41,10 +41,10 @@ async def register_user(user_register: UserRegister,
     if db_user:
         # User exists, resend email.
         token = generate_jwt(db_user.id)
-        send_verification_email(email_to=db_user.email, user_id=db_user.id, token=token)
+        await send_verification_email(email_to=db_user.email, user_id=db_user.id, token=token)
         raise HTTPException(status_code=400, detail="Email already registered. Re-sending email.")
 
-    if user_register.name in PERMITTED_USER_NAMES:
+    if user_register.name in RESTRICTED_USER_NAMES:
         raise HTTPException(status_code=400, detail="You're smart, but this user name is invalid.")
 
     # Encrypt user password
@@ -60,7 +60,7 @@ async def register_user(user_register: UserRegister,
     token = generate_jwt(new_user.id)
 
     # Send verification email
-    send_verification_email(email_to=new_user.email, user_id=new_user.id, token=token)
+    await send_verification_email(email_to=new_user.email, user_id=new_user.id, token=token)
 
     return {
         "msg": "OK",

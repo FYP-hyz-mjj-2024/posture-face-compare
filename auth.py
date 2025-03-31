@@ -6,7 +6,8 @@ import datetime
 import uuid
 from fastapi import HTTPException, status, Header
 
-import smtplib
+import asyncio
+import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -91,7 +92,7 @@ def validate_user(
     return True
 
 
-def send_verification_email(email_to: str, user_id: str, token: str):
+async def send_verification_email(email_to: str, user_id: str, token: str):
     """
     Send a verification email to the email address of the registered user.
     :param email_to: Destination email address of the registered user.
@@ -124,17 +125,21 @@ def send_verification_email(email_to: str, user_id: str, token: str):
     msg.attach(MIMEText(html_content, "html", "utf-8"))
 
     try:
-        server = smtplib.SMTP_SSL(SMTP_SERVER, int(SMTP_PORT))
-        # server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.sendmail(EMAIL_FROM, email_to, msg.as_string())
-        server.quit()
+        server = aiosmtplib.SMTP(hostname=SMTP_SERVER, port=int(SMTP_PORT), use_tls=True)
+        await server.connect()
+        await server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        await server.send_message(msg)
+
+        # Bypass mal-formatted response handling. If response contains non-ASCII chars.
+        try:
+            await server.quit()
+        except Exception as e:
+            print(f"Can't properly close the connection: {str(e)}.")
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Failed to send email to {email_to}: {str(e)}.")
 
 
 if __name__ == "__main__":
-    # send_verification_email("hyzumarchive@gmail.com", user_id="UUID_placeholder", token="token_placeholder")
-    sk = generate_secret_key()
-    print(sk)
+    asyncio.run(send_verification_email("huangyanzhen0108@163.com", user_id="UUID_placeholder", token="token_placeholder"))
