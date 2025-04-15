@@ -1,5 +1,16 @@
-# Server
-Take ubuntu terminal UI from DigitalOcean as an example.
+# Smart Device Usage Detection - Storage Backend
+
+<img src="https://s2.loli.net/2025/04/15/YNdVMxebcvH1DtU.png" >
+
+> [!NOTE]
+> You don't need to build the storage backend in order to run the project. The storage backend is already configured into the remote Ubuntu server in [DigitalOcean](https://cloud.digitalocean.com/).
+> The following instructions records the building process.
+
+**Deployment Info**
+- Reversed proxied with Nginx
+- Configured SSL certificate with Certbot
+- Deployed on Ubuntu, DigitalOcean
+- Domain: www.youfocusyourwalk.com
 
 ## 1. Install PostgreSQL
 1.1 Install `postgresql` with `apt`.
@@ -91,7 +102,7 @@ Some packages are required to be installed manually.
 
 ## 5. Run & Maintain
 ### 5.1 Screen
-5.1.1 Install `screen` - A multiplex tool for terminal UI.
+5.1.1 Install [screen](https://www.gnu.org/software/screen/) - A multiplex tool for terminal UI.
 ```sh
 sudo apt install screen
 ```
