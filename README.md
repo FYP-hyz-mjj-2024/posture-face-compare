@@ -1,6 +1,6 @@
 # Smart Device Usage Detection - Storage Backend
 
-<img src="https://s2.loli.net/2025/04/15/YNdVMxebcvH1DtU.png" >
+<img src="https://s2.loli.net/2025/04/15/lSCdHQFZakJEzOY.png" >
 
 > [!NOTE]
 > You don't need to build the storage backend in order to run the project. The storage backend is already configured into the remote Ubuntu server in [DigitalOcean](https://cloud.digitalocean.com/).
