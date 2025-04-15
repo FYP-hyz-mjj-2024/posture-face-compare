@@ -21,7 +21,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://www.youfocusyourwalk.top"
+        "https://www.youfocusyourwalk.top",
         "https://youfocusyourwalk.top"
     ],    # Allow specific requests
     allow_credentials=True,
