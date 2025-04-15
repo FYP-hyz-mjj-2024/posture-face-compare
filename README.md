@@ -12,6 +12,7 @@
 - Deployed on Ubuntu, DigitalOcean
 - Domain: www.youfocusyourwalk.com
 
+# Deployment
 ## 1. Install PostgreSQL
 1.1 Install `postgresql` with `apt`.
 ```sh
