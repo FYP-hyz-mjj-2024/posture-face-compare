@@ -22,7 +22,7 @@ from database import get_db
 from CRUD.face.models import Face
 from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FacesFindByDesc, FaceCompare
 from CRUD.user.models import WRITE, READ, DELETE, UPDATE
-from query import find_by, _guard_db
+from query import find_by, _guard_db, _guard_db_new, get_header_token
 
 router = APIRouter()
 
@@ -126,15 +126,21 @@ def _check_file_type(blob: bytes, allowed_types):
 
 
 @router.post("/upload_face/")
-async def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
+async def upload_face(
+        face_upload: FaceUpload,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Upload a face.
     :param face_upload: Face upload data.
+    :param token: Authorization JWT token.
     :param db: Database session.
     :return: Upload message.
     """
 
-    _guard_db(auth=face_upload, permission=WRITE, db=db)
+    # _guard_db(auth=face_upload, permission=WRITE, db=db)
+    _guard_db_new(auth=face_upload, token=token, permission=WRITE, db=db)
+
     _check_file_type(blob=face_upload.blob, allowed_types=ALLOWED_EXTENSIONS)
 
     face_feature = retrieve_face_feature(face_upload.blob)
@@ -163,14 +169,19 @@ async def upload_face(face_upload: FaceUpload, db: Session = Depends(get_db)):
 
 
 @router.post("/get_faces/")
-async def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
+async def get_faces(
+        faces_get: FacesGet,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Get faces from a given range.
     :param faces_get: Faces get data.
+    :param token: Authorization JWT token.
     :param db: Database Session.
     :return:
     """
-    _guard_db(auth=faces_get, permission=READ, db=db)
+    # _guard_db(auth=faces_get, permission=READ, db=db)
+    _guard_db_new(auth=faces_get, token=token, permission=READ, db=db)
 
     # Process the query range.
     _limit = faces_get.range_to - faces_get.range_from + 1
@@ -191,14 +202,20 @@ async def get_faces(faces_get: FacesGet, db: Session = Depends(get_db)):
 
 
 @router.post("/update_face/")
-async def update_face(face_update: FaceUpdate, db: Session = Depends(get_db)):
+async def update_face(
+        face_update: FaceUpdate,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Update a specific face.
     :param face_update: Face update data. face_id, description
+    :param token: Authorization JWT token.
     :param db: Database Session.
     :return: A successful message if updated successful. Otherwise, an error will be raised.
     """
-    _guard_db(auth=face_update, permission=UPDATE, db=db)
+    # _guard_db(auth=face_update, permission=UPDATE, db=db)
+    _guard_db_new(auth=face_update, token=token, permission=READ, db=db)
+
     face_to_update = find_by(orm=Face, attr="id", val=face_update.face_id,
                              fail_detail=f"Update failed: No face with id {face_update.face_id} found.",
                              db=db)
@@ -214,14 +231,20 @@ async def update_face(face_update: FaceUpdate, db: Session = Depends(get_db)):
 
 
 @router.post("/delete_face/")
-async def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
+async def delete_face(
+        face_delete: FaceDelete,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Delete a specific face.
     :param face_delete: Face delete data.
+    :param token: Authorization JWT token.
     :param db: Database Session.
     :return: A successful message if deleted successful. Otherwise, an error will be raised.
     """
-    _guard_db(auth=face_delete, permission=DELETE, db=db)
+    # _guard_db(auth=face_delete, token=token, permission=DELETE, db=db)
+
+    _guard_db_new(auth=face_delete, token=token, permission=DELETE, db=db)
 
     db_face = db.query(Face).filter(
         cast("ColumnElement[bool]", Face.id == face_delete.face_id)
@@ -239,15 +262,21 @@ async def delete_face(face_delete: FaceDelete, db: Session = Depends(get_db)):
 
 
 @router.post("/compare_face/")
-async def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db)):
+async def compare_face(
+        face_compare: FaceCompare,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Upload a face and find its match.
     :param face_compare: Face blob to upload.
+    :param token: Authorization JWT token.
     :param db: Database session.
     :return: A list of matched faces' descriptions with scores.
     """
 
-    _guard_db(auth=face_compare, permission=WRITE, db=db)
+    # _guard_db(auth=face_compare, permission=WRITE, db=db)
+    _guard_db_new(auth=face_compare, token=token, permission=DELETE, db=db)
+
     _check_file_type(blob=face_compare.blob, allowed_types=ALLOWED_EXTENSIONS)
 
     face_feature = retrieve_face_feature(face_compare.blob)
@@ -282,17 +311,20 @@ async def compare_face(face_compare: FaceCompare, db: Session = Depends(get_db))
 
 
 @router.post("/find_faces/")
-async def find_faces(face_find: FacesFindByDesc, db: Session = Depends(get_db)):
+async def find_faces(
+        face_find: FacesFindByDesc,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Find a specific face using face_id or description.
     :param face_find: Face find data.
+    :param token: Authorization JWT token.
     :param db: Database session.
     :return: If success, returns the found face. Otherwise, an HTTP exception will be raised.
     """
-    _guard_db(auth=face_find, permission=WRITE, db=db)
 
-    # db_face = find_by(orm=Face, attr=attr, val=getattr(face_find, attr),
-    #                   fail_detail=f"No result for this query.", db=db)
+    # _guard_db(auth=face_find, token=token, permission=WRITE, db=db)
+    _guard_db_new(auth=face_find, token=token, permission=READ, db=db)
 
     db_faces = db.query(Face).filter(
         Face.description.ilike(f"%{face_find.query}%")

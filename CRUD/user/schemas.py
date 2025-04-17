@@ -18,6 +18,10 @@ class UserLoginWithName(BaseModel):
     password: str
 
 
+class WithUserId(BaseModel):
+    user_id: uuid.UUID
+
+
 class UserAuth(BaseModel):
     user_id: uuid.UUID
     token: str

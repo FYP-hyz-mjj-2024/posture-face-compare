@@ -2,35 +2,35 @@ from uuid import UUID
 from typing import Optional
 
 # Local
-from CRUD.user.schemas import UserAuth
+from CRUD.user.schemas import UserAuth, WithUserId
 
 
-class FaceUpload(UserAuth):
+class FaceUpload(WithUserId):
     blob: bytes
     description: Optional[str] = None
 
 
-class FacesGet(UserAuth):
+class FacesGet(WithUserId):
     range_from: int
     range_to: int
 
 
-class FaceUpdate(UserAuth):
+class FaceUpdate(WithUserId):
     face_id: UUID
     description: str
 
 
-class FaceDelete(UserAuth):
+class FaceDelete(WithUserId):
     face_id: UUID
 
 
-class FaceFindByID(UserAuth):
+class FaceFindByID(WithUserId):
     face_id: UUID
 
 
-class FacesFindByDesc(UserAuth):
+class FacesFindByDesc(WithUserId):
     query: str
 
 
-class FaceCompare(UserAuth):
+class FaceCompare(WithUserId):
     blob: bytes
