@@ -22,7 +22,7 @@ from database import get_db
 from CRUD.face.models import Face
 from CRUD.face.schemas import FaceUpload, FacesGet, FaceUpdate, FaceDelete, FacesFindByDesc, FaceCompare
 from CRUD.user.models import WRITE, READ, DELETE, UPDATE
-from query import find_by, _guard_db, _guard_db_new, get_header_token
+from query import find_by, _guard_db, get_header_token
 
 router = APIRouter()
 
@@ -138,8 +138,7 @@ async def upload_face(
     :return: Upload message.
     """
 
-    # _guard_db(auth=face_upload, permission=WRITE, db=db)
-    _guard_db_new(auth=face_upload, token=token, permission=WRITE, db=db)
+    _guard_db(auth=face_upload, token=token, permission=WRITE, db=db)
 
     _check_file_type(blob=face_upload.blob, allowed_types=ALLOWED_EXTENSIONS)
 
@@ -180,8 +179,7 @@ async def get_faces(
     :param db: Database Session.
     :return:
     """
-    # _guard_db(auth=faces_get, permission=READ, db=db)
-    _guard_db_new(auth=faces_get, token=token, permission=READ, db=db)
+    _guard_db(auth=faces_get, token=token, permission=READ, db=db)
 
     # Process the query range.
     _limit = faces_get.range_to - faces_get.range_from + 1
@@ -213,8 +211,7 @@ async def update_face(
     :param db: Database Session.
     :return: A successful message if updated successful. Otherwise, an error will be raised.
     """
-    # _guard_db(auth=face_update, permission=UPDATE, db=db)
-    _guard_db_new(auth=face_update, token=token, permission=READ, db=db)
+    _guard_db(auth=face_update, token=token, permission=READ, db=db)
 
     face_to_update = find_by(orm=Face, attr="id", val=face_update.face_id,
                              fail_detail=f"Update failed: No face with id {face_update.face_id} found.",
@@ -242,9 +239,7 @@ async def delete_face(
     :param db: Database Session.
     :return: A successful message if deleted successful. Otherwise, an error will be raised.
     """
-    # _guard_db(auth=face_delete, token=token, permission=DELETE, db=db)
-
-    _guard_db_new(auth=face_delete, token=token, permission=DELETE, db=db)
+    _guard_db(auth=face_delete, token=token, permission=DELETE, db=db)
 
     db_face = db.query(Face).filter(
         cast("ColumnElement[bool]", Face.id == face_delete.face_id)
@@ -273,9 +268,7 @@ async def compare_face(
     :param db: Database session.
     :return: A list of matched faces' descriptions with scores.
     """
-
-    # _guard_db(auth=face_compare, permission=WRITE, db=db)
-    _guard_db_new(auth=face_compare, token=token, permission=DELETE, db=db)
+    _guard_db(auth=face_compare, token=token, permission=DELETE, db=db)
 
     _check_file_type(blob=face_compare.blob, allowed_types=ALLOWED_EXTENSIONS)
 
@@ -322,9 +315,7 @@ async def find_faces(
     :param db: Database session.
     :return: If success, returns the found face. Otherwise, an HTTP exception will be raised.
     """
-
-    # _guard_db(auth=face_find, token=token, permission=WRITE, db=db)
-    _guard_db_new(auth=face_find, token=token, permission=READ, db=db)
+    _guard_db(auth=face_find, token=token, permission=READ, db=db)
 
     db_faces = db.query(Face).filter(
         Face.description.ilike(f"%{face_find.query}%")

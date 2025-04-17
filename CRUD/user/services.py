@@ -13,11 +13,11 @@ from passlib.context import CryptContext
 # Locals
 from auth import generate_jwt, validate_user, send_verification_email
 from database import get_db
-from CRUD.user.models import User, GRANT_PERMISSION
+from CRUD.user.models import User, WRITE, READ, DELETE, UPDATE, GRANT_PERMISSION
 from CRUD.user.schemas import (
-    UserAuth, UserRegister, UserLoginWithEmail, UserLoginWithName,
+    WithUserId, UserRegister, UserLoginWithEmail, UserLoginWithName,
     PermissionEdit, UsersGet, EmailVerifySuper, UsersFindByName)
-from query import find_by, _guard_db
+from query import find_by, _guard_db, get_header_token
 
 router = APIRouter()
 
@@ -98,14 +98,18 @@ async def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get
 
 
 @router.post("/verify_email_super/")
-async def verify_email_super(email_verify_super: EmailVerifySuper, db=Depends(get_db)):
+async def verify_email_super(
+        email_verify_super: EmailVerifySuper,
+        token: str = Depends(get_header_token),
+        db=Depends(get_db)):
     """
     Manual email verification by superuser.
     :param email_verify_super: Email verification data.
     :param db: Database session.
     :return:
     """
-    _guard_db(auth=email_verify_super, permission=GRANT_PERMISSION, db=db)
+    _guard_db(auth=email_verify_super, token=token, permission=GRANT_PERMISSION, db=db)
+
     db_user = find_by(orm=User,
                       attr="id",
                       val=email_verify_super.verify_user_id,
@@ -185,19 +189,23 @@ async def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_
 
 
 @router.post("/get_user/")
-async def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
+async def get_user(
+        with_user_id: WithUserId,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Get information of a specific user.
-    :param user_auth: User authentication schema.
+    :param with_user_id: User authentication schema.
+    :param token: Authorization JWT token.
     :param db: Database object.
     :return: The information of the user.
     """
-    validate_user(user_auth.user_id, user_auth.token)
+    validate_user(with_user_id.user_id, token)
 
     db_user = find_by(orm=User,
                       attr="id",
-                      val=user_auth.user_id,
-                      fail_detail=f"User with id {user_auth.user_id} is not found.",
+                      val=with_user_id.user_id,
+                      fail_detail=f"User with id {with_user_id.user_id} is not found.",
                       db=db)
 
     return {
@@ -210,15 +218,19 @@ async def get_user(user_auth: UserAuth, db: Session = Depends(get_db)):
 
 
 @router.post("/get_users/")
-async def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
+async def get_users(
+        users_get: UsersGet,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Superuser function: Get users from a given range.
     :param users_get: Users get data.
+    :param token: Authorization JWT token.
     :param db: Database session.
     :return:
     """
 
-    _guard_db(auth=users_get, permission=GRANT_PERMISSION, db=db)
+    _guard_db(auth=users_get, token=token, permission=GRANT_PERMISSION, db=db)
 
     _limit = users_get.range_to - users_get.range_from + 1
 
@@ -250,14 +262,20 @@ async def get_users(users_get: UsersGet, db: Session = Depends(get_db)):
 
 
 @router.post("/find_users/")
-async def find_users(users_find: UsersFindByName, db: Session = Depends(get_db)):
+async def find_users(
+        users_find: UsersFindByName,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Get a list of users with a search query. If the query is not given,
     all users are returned, i.e., matches the empty query.
     :param users_find: Users find data.
+    :param token: Authorization JWT token.
     :param db: Database object.
     :return: A list of users that matches the query.
     """
+
+    _guard_db(auth=users_find, token=token, permission=READ, db=db)
 
     db_users = db.query(User).filter(User.name.ilike(f"%{users_find.query}%")).all()
 
@@ -275,11 +293,14 @@ async def find_users(users_find: UsersFindByName, db: Session = Depends(get_db))
 
 
 @router.post("/edit_permission/")
-async def edit_permission(permission_edit: PermissionEdit,
-                          db: Session = Depends(get_db)):
+async def edit_permission(
+        permission_edit: PermissionEdit,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
     """
     Superuser function: To grant or revoke other user's permission of access, one at a time.
     :param permission_edit: Permission grant data.
+    :param token: Authorization JWT token.
     :param db: Database object.
     :return: Result of permission granting.
     """
@@ -287,18 +308,8 @@ async def edit_permission(permission_edit: PermissionEdit,
     '''
     Operator
     '''
-    validate_user(permission_edit.operator_user_id, permission_edit.token)
-
-    db_operator_user = find_by(orm=User,
-                               attr="id",
-                               val=permission_edit.operator_user_id,
-                               fail_detail=f"Operator {permission_edit.operator_user_id} not found.",
-                               db=db)
-
-    # Operator has no permission to grant other's access.
-    if not db_operator_user.check_permission(permission=GRANT_PERMISSION):
-        raise HTTPException(status_code=403, detail=f"Operator {permission_edit.requester_user_id} "
-                                                    f"is not allowed to grant permission.")
+    # validate_user(permission_edit.operator_user_id, permission_edit.token)
+    _guard_db(auth=permission_edit, token=token, permission=GRANT_PERMISSION, db=db)
 
     '''
     Permission Applier

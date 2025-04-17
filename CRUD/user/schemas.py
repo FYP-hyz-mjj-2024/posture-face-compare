@@ -27,22 +27,20 @@ class UserAuth(BaseModel):
     token: str
 
 
-class EmailVerifySuper(UserAuth):
+class EmailVerifySuper(WithUserId):
     verify_user_id: uuid.UUID
 
 
-class PermissionEdit(BaseModel):
+class PermissionEdit(WithUserId):
     grant: bool
-    operator_user_id: uuid.UUID
     requester_user_id: uuid.UUID
-    token: str
     permission: int
 
 
-class UsersGet(UserAuth):
+class UsersGet(WithUserId):
     range_from: int
     range_to: int
 
 
-class UsersFindByName(UserAuth):
+class UsersFindByName(WithUserId):
     query: str

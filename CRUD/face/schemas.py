@@ -2,7 +2,7 @@ from uuid import UUID
 from typing import Optional
 
 # Local
-from CRUD.user.schemas import UserAuth, WithUserId
+from CRUD.user.schemas import WithUserId
 
 
 class FaceUpload(WithUserId):

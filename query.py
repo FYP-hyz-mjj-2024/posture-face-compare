@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from auth import validate_user
 from database import get_db
 from CRUD.user.models import User
-from CRUD.user.schemas import UserAuth, WithUserId
+from CRUD.user.schemas import WithUserId
 from database import Base
 
 
@@ -48,33 +48,7 @@ def find_by(orm: Base,
     return db_orm
 
 
-def _guard_db(auth: UserAuth, permission: int, db: Session):
-    """
-    Guard database from unauthorized operations.
-    :param auth: Data objects with user authorization details, including user_id and token.
-    :param permission: The target permission to check to allow this operation.
-    :param db: Database session.
-    :return: True if permission is granted. Otherwise, an exception will be raised.
-    """
-    # Check for user validation.
-    uploader_id = auth.user_id
-    uploader_token = auth.token
-    validate_user(user_id=uploader_id, token=uploader_token)
-
-    db_uploader = find_by(orm=User,
-                          attr="id",
-                          val=uploader_id,
-                          fail_detail=f"Failed to verify user {uploader_id}",
-                          db=db)
-
-    if not db_uploader.check_permission(permission=permission):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"The user {uploader_id} does not have the permission to access this resource.")
-
-    return True
-
-
-def _guard_db_new(auth: WithUserId, token, permission: int, db: Session):
+def _guard_db(auth: WithUserId, token, permission: int, db: Session):
     """
     Guard database from unauthorized operations.
     :param auth: Data objects with user authorization details, including user_id and token.
@@ -100,6 +74,11 @@ def _guard_db_new(auth: WithUserId, token, permission: int, db: Session):
 
 
 def get_header_token(authorization: str = Header(...)):
+    """
+    Get Bearer JWT authorization token from Authorization header.
+    :param authorization: Authorization Header.
+    :return: JWT token
+    """
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authorization header.")
 
