@@ -1,7 +1,7 @@
 # Pedestrian Cell Phone Usage Detection - Storage Backend
 > Alias: **YOU FOCUS YOUR WALK**
 
-<img src="https://s2.loli.net/2025/04/15/lSCdHQFZakJEzOY.png" >
+<img src="https://s2.loli.net/2025/04/15/lSCdHQFZakJEzOY.png" alt="This is a remote image.">
 
 > [!NOTE]
 > 
@@ -459,9 +459,9 @@ Initialize all tables using python.
 ```
 Then, detach the current Screen session to maintain running by pressing `CTRL+A` then `d`.
 
-# Dep-5 PostgreSQL Command Line Tips
+## Dep-5 PostgreSQL Command Line Tips
 
-## 5.1 Starting and stopping (For local)
+### 5.1 Starting and stopping (For local)
 stop database (local only, depends on where your PostgreSQL is installed)
 
 ```powershell
@@ -473,7 +473,7 @@ start database (local only, depends on where your PostgreSQL is installed)
 ```powershell
 pg_ctl -D "D:\ProgramFiles\PostgreSQL\17\data" start
 ```
-## 5.2 Common Usages
+### 5.2 Common Usages
 5.2.1 Login as super user `postgres`
 
 ```sh
