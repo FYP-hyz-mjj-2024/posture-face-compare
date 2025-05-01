@@ -1,10 +1,11 @@
-# Pedestrian Cell Phone Usage Detection  - Storage Backend
+# Pedestrian Cell Phone Usage Detection - Storage Backend
 
 <img src="https://s2.loli.net/2025/04/15/lSCdHQFZakJEzOY.png" >
 
 > [!NOTE]
-> You don't need to build the storage backend in order to run the project. The storage backend is already configured into the remote Ubuntu server in [DigitalOcean](https://cloud.digitalocean.com/).
-> The following instructions records the building process.
+> You don't need to build the storage backend in order to run the project. 
+> The storage backend is already configured into the remote Ubuntu server in [DigitalOcean](https://cloud.digitalocean.com/).
+> This README is a manual to deploy this project.
 
 **Deployment Info**
 - Reversed proxied with Nginx
@@ -12,8 +13,50 @@
 - Deployed on Ubuntu, DigitalOcean
 - Domain: www.youfocusyourwalk.com
 
+**Custom Deployment Tips**
+If you want to deploy to your own server, you need to prepare the following yourself.
+- A domain and a server.
+- A `SECRET_KEY` in the environment `.env` to generate JWT.
+
+# Pre-requisite
+### Install [Screen](https://help.ubuntu.com/community/Screen)
+0. Install [Screen](https://www.gnu.org/software/screen/) - A multiplex tool for terminal UI.
+
+```sh
+sudo apt install screen
+```
+
+1. Create a `Screen` session.
+```sh
+screen -S <SCREEN_NAME>
+```
+Then, a terminal session is started. (Like a windows on GUI.)
+
+Detatch `screen` session. 
+```
+CTRL+A
+d
+```
+Then, the cuirrent session is detatched. (Like minimizing a window in GUI.)
+
+2. Re-attach `screen` session.
+```sh
+screen -r <SCREEN_NAME>
+```
+Then, you go back to a screen session. (Like re-opening a window in GUI.)
+
+3. See all opened `screen` session.
+```sh
+screen -ls
+```
+You will see all your screen session listed. (Like a task manager in Windows.)
+
 # Deployment
 ## 1. Install PostgreSQL
+
+> Please create/re-attach to a dedicated screen session with an intuitive name. e.g.:
+> `screen -r PostgreSQL`
+
 1.1 Install `postgresql` with `apt`.
 ```sh
 sudo apt install postgresql
@@ -36,57 +79,54 @@ sudo systemctl restart postgresql.service
 
 Similarly, you can replace the `restart` tag with `start` or `stop`.
 
+> Please detach this screen session when finished.
+
 ## 2. Install `cmake` and `build-essential`.
 ```sh
 sudo apt-get install build-essential && apt-get install cmake
 ```
 They are installed to compile opencv and dlib. 
 
-## 3. Conda
-3.1 Use `wget` to download the installer. The installer file will be stored in the root file.
+
+## 3 Runtime Environment
+> Please create/re-attach to a dedicated screen session with an intuitive name. e.g.:
+> `screen -r backend-python-code`
+### 3.1 Install Conda
+3.1.1 Use `wget` to download the installer. The installer file will be stored in the root file.
 ```sh
 wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
 ```
 
-3.2 Run the installer to install conda.
+3.1.2 Run the installer to install conda.
 ```sh
 bash <conda-installer-name>-latest-Linux-x86_64.sh
 ```
 After installation, restart your console.
 
-## 4. Virtual Environment
-
-4.1 Create virtual environment.
+### 3.2 Create Virtual Environment
+3.2.1 Create virtual environment.
 ```sh
 conda create --prefix <PATH_TO_YOUR_VENV>/<VENV_NAME> python=3.12
 ```
 
-4.2 Clone this repository.
+3.2.2 Clone this repository:
 ```sh
 git clone https://github.com/FYP-hyz-mjj-2024/posture-face-compare.git
 ```
 
-4.3 Setup environment variables. 
+3.2.3 Setup environment variables. 
 Add a file called `.env` and fill in this structure in the file:
 ```
 # Secret key
-SECRET_KEY=XXXX     # to generate jwt
-SUPER_USER_TOKEN=XXXX       # reserved
+SECRET_KEY=XXXX             # to generate jwt
 
 # Server Domain
 SERVER_DOMAIN=http://XXXX:8001
 SERVER_HOST=0.0.0.0     # Expose to internet
 DATABASE_URL=postgresql://<USER_NAME>:<PASSWORD>@localhost:5432/<DATABASE_NAME>
-
-# Email Confirmation
-SMTP_SERVER=smtp.xxx.com
-SMTP_PORT=587       # Example value, can change
-SMTP_USERNAME=xxx@xxx.com
-SMTP_PASSWORD=xxxxxxxxxx
-EMAIL_FROM=xxx@xxx.com
 ```
 
-4.2 Install packages.
+3.2.4 Install packages listed in [requirements.txt](./requirements.txt)
 ```sh
 <PATH_TO_YOUR_VENV>/<VENV_NAME>/bin/pip install -r requirements.txt
 ```
@@ -94,46 +134,167 @@ EMAIL_FROM=xxx@xxx.com
 This process should be done after the *1. Install PostgreSQL* and *2. cmake and build-essential*, 
 as a python package will always require PostgreSQL and some building tools.
 
-4.3 Additional packages.
-Some packages are required to be installed manually.
+3.2.5 Install additional packages not listed in requirements.
 ```sh
 <PATH_TO_YOUR_VENV>/<VENV_NAME>/bin/pip install magic
 <PATH_TO_YOUR_VENV>/<VENV_NAME>/bin/pip install opencv-python-headerless
 ```
 
+> Please detach this screen session when finished.
+
+## 4. Security
+
+> Please create/re-attach to a dedicated screen session with an intuitive name. e.g.:
+> `screen -r nginx`
+
+### 4.1 Nginx
+**4.1.1 Install Nginx.**
+```sh
+sudo apt install nginx
+```
+**4.1.2 Add configuration to nginx.**
+
+First, go to the `sites-available` file of `nginx`.
+
+```sh
+cd /etc/nginx/sites-available
+```
+
+Delete the default configuration.
+
+```sh
+sudo rm ./<default_config_name>
+```
+
+Initialize a new configuration.
+
+```sh
+nano /etc/nginx/sites-available/<config_name>
+```
+`nano` is a text editor, it will open a blank file if a file doesn't exist. 
+Here, you are actually initializing the configuration file.
+
+**4.1.3 Write configuration.**
+
+Paste the following into the configuration file. Press `shift` + `insert` to paste.
+```config
+server {
+    listen 80;
+    server_name www.youfocusyourwalk.top youfocusyourwalk.top;
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+}
+```
+The domain of `youfocusyouralk.top` (see line 3) is bought by me. If you want to deploy it to
+your own domain, please change it.
+
+After writing this, close the editor by pressing `Ctrl` +`x` (means close) and then `y` (confirm write).
+
+**4.1.4 Apply configuration.**
+
+Run the following command to apply your changes in Nginx.
+
+```sh
+sudo ln /etc/nginx/sites-available/<config_name>
+sudo nginx -t
+sudo systemctl start nginx
+```
+
+First command: Link the config file to Nginx.
+Second command: Check syntax errors in config file. (Please always do this.)
+Third command: Runs Nginx to apply changes.
+
+You can also check the status by running:
+
+```sh
+sudo systemctl status nginx
+```
+
+Whenever a change in the configuration is done, please reload Nginx.
+
+```sh
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 4.2 HTTPS
+
+**4.2.1 Install Certbot + Plugin**
+
+```sh
+sudo apt install certbot python3-certbot-nginx
+```
+
+The plugin integrates certbot with Nginx to make configuration more convenient.
+
+> Please make sure your domain (in my case, youfocusyourwalk.top), is DNS-propagated correctly,
+> and Nginx is serving HTTP. You may:
+> 1. Ping your domain first by running `ping <your_domain>`
+> 2. Test in the browser (or use `curl` if you prefer) on http://youfocusyourwalk.top .
+
+**4.2.2 Run Certbot**
+
+```sh
+sudo certbot --nginx -d youfocusyourwalk.top -d www.youfocusyourwalk.top
+```
+
+It will ask you for a few things:
+- Your email: Notify you when certificate expires.
+- Terms of service: Just agree by typing `A`
+- Whether to choose HTTPS: Please choose HTTPS only, instead of both HTTP and HTTPS.
+
+**4.2.3 Auto Renewal**
+
+It is recommended to automatically renew your certificate. First, test the renewal by running:
+```sh
+sudo certbot renew --dry-run
+```
+`--dry-run` means Certbot will only test the ability to renew the certificate, 
+instead of actually renewing it. Again, please make sure your domain is DNS-propagated for a 
+decent amount of time before you do this.
+
+If the dry run succeeds, edit the root [crontab](https://help.ubuntu.com/community/CronHowto) of the system:
+```sh
+sudo crontab -e
+```
+> Crontab is a system daemon to run specific command at a specific time. Press the link above for
+> an official tutorial.
+
+Add this line to the bottom:
+```config
+0 3 * * * certbot renew --quiet --post-hook "systemctl reload nginx"
+```
+
+This registers a command to the system that, every day at 3 a.m. (UTC+0), the certificate is renewed.
+- `--quiet`: No outputs unless there's an error.
+- `--post-hook`: Defines the command after running this command. (i.e., reloads Nginx)
+- Please notice that `DigitalOcean` uses UTC+0. So if you uses `DigitalOcean` and you are in East Asia, 
+  you may need to add 8 (Beijing Time) or 9 (Tokyo Time) in hours when you define your work.
+- 
+
+Verify crontab with:
+```sh
+sudo crontab -l
+```
+
+This will list all your registered jobs.
+
+> Please detach this screen session when finished.
+
 ## 5. Run & Maintain
-### 5.1 Screen
-5.1.1 Install [screen](https://www.gnu.org/software/screen/) - A multiplex tool for terminal UI.
-```sh
-sudo apt install screen
-```
-
-5.1.2 Create `screen` session.
-```sh
-screen -S <SCREEN_NAME>
-```
-Then, a terminal session is started. (Like a windows on GUI.)
-
-5.1.3 Detatch `screen` session. 
-```
-CTRL+A
-d
-```
-Then, the cuirrent session is detatched. (Like minimizing a window in GUI.)
-
-5.1.4 Re-attach `screen` session.
-```sh
-screen -r <SCREEN_NAME>
-```
-Then, you go back to a screen session. (Like re-opening a window in GUI.)
-
-5.1.5 See all opened `screen` session.
-```sh
-screen -ls
-```
-
-### 5.2 Setup
-5.2.1 (In the database screen) Setup database.
+### 5.1 Setup
+5.1.1 (In the database screen) Setup database.
 ```sh
 sudo -u <USER_NAME> psql
 ```
@@ -142,7 +303,7 @@ CREATE DATABASE fastapi_db;
 \c fastapi_db
 ```
 
-5.2.2 (In the python backend screen)
+5.1.2 (In the python backend screen) Initialize tables.
 ```sh
 cd <PROJECT_ROOT>
 ```
@@ -153,15 +314,13 @@ Initialize all tables using python.
 <PATH_TO_YOUR_VENV>/<VENV_NAME>/bin/python -m CRUD.face.__reset__
 ```
 
-Run
+### 5.2 Run Project
 ```sh
 <PATH_TO_YOUR_VENV>/<VENV_NAME>/bin/python -m main
 ```
-
 Then, detach to maintain running by pressing `CTRL+A` then `d`.
 
-
-# Local Tips
+# PostgreSQL Command Line Tips (For local dev only)
 stop database
 
 `pg_ctl -D "D:\ProgramFiles\PostgreSQL\17\data" stop`
