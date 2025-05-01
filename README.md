@@ -125,6 +125,33 @@ sudo apt install wget
 
 It is a network utility used to download anaconda.
 
+3.3 Install `git`
+
+```sh
+sudo apt install git
+```
+
+Configure git. 
+
+```sh
+git config --global user.namd "<YOUR_GITHUB_USERNAME>"
+git config --global user.email "<YOUR_GITHUB_EMAIL>"
+```
+
+Logging in to a GitHub account is NOT mandatory to clone this repository, since it's public:
+
+https://github.com/FYP-hyz-mjj-2024/posture-face-compare.git
+
+> However, if you prefer, you can use SSH or HTTPS (with personal access token only) to log in to GitHub.
+> 
+> If you prefer to log in to GitHub, I suggest to install a software `gh` for your convenience.
+> 
+> `sudo apt install gh`
+> 
+> You can refer to GitHub's [tutorial](https://docs.github.com/en/get-started/git-basics/set-up-git) 
+> to use SSH or HTTPS to log in your GitHub Account:
+
+
 # Deployment
 ## Dep-1 Install PostgreSQL
 
@@ -148,8 +175,8 @@ sudo systemctl start postgresql.service
 sudo -u <USER_NAME> psql template1
 ```
 
-```sh
-ALTER USER <USER_NAME> with encrpted password '<PASSWORD>'
+```postgreSQL
+ALTER USER <USER_NAME> with encrpted password '<PASSWORD>';
 ```
 
 1.3 Restart PostgreSQL
