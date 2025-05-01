@@ -1,16 +1,11 @@
-# Basic
-import os
-
 # Packages
 from sqlalchemy import Column, String, Boolean, DateTime, func, SmallInteger
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import text
-from dotenv import load_dotenv
 
 # Root reference
 from database import Base
 
-load_dotenv()
 
 """
 Bitwise permission (from lowest to highest)
@@ -68,7 +63,7 @@ class User(Base):
     name = Column(String)
 
     # Verification Fields
-    is_verified = Column(Boolean, default=bool(os.getenv("DEFAULT_VERIFIED")))
+    is_verified = Column(Boolean, default=False)
 
     permissions = Column(SmallInteger,
                          default=(READ | WRITE | DELETE | UPDATE),

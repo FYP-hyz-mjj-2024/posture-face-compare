@@ -1,24 +1,19 @@
+# Basics
 import os
+import datetime
+import uuid
+
+# Security
 import jwt
 import secrets
 from dotenv import load_dotenv
-import datetime
-import uuid
-from fastapi import HTTPException, status, Header
 
-import asyncio
-import aiosmtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# FastAPI tools
+from fastapi import HTTPException, status, Header
 
 load_dotenv()
 SERVER_DOMAIN = os.getenv('SERVER_DOMAIN')
 SECRET_KEY = os.getenv("SECRET_KEY")
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = os.getenv("SMTP_PORT")
-SMTP_USERNAME = os.getenv("SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-EMAIL_FROM = os.getenv("EMAIL_FROM")
 
 if not SECRET_KEY:
     raise ValueError("Missing critical environment variable: "
@@ -90,56 +85,3 @@ def validate_user(
                             detail=f"Authorization token can't be verified specifically for this user.")
 
     return True
-
-
-async def send_verification_email(email_to: str, user_id: str, token: str):
-    """
-    Send a verification email to the email address of the registered user.
-    :param email_to: Destination email address of the registered user.
-    :param user_id: UUID of the registered user.
-    :param token: JWT token of the registered user.
-    :return:
-    """
-    subject = "Verify email for YFYW backend management"
-    verification_url = f"{SERVER_DOMAIN}/user/verify_email/?user_id={user_id}&token={token}"
-
-    html_content = f"""
-    <html>
-        <main>
-            <body>
-                <h2>Verify your email.</h2>
-                <p>Thanks for registering with us!</p>
-                <p>Please click the link below to verify your email address:</p>
-                <p><a href="{verification_url}">Verify Email</a></p>
-                <p>Please ignore this email if you do not expect this.</p>
-            </body>
-        </main>
-    </html>
-    """
-
-    msg = MIMEMultipart()
-    msg["From"] = EMAIL_FROM
-    msg["To"] = email_to
-    msg["Subject"] = subject
-
-    msg.attach(MIMEText(html_content, "html", "utf-8"))
-
-    try:
-        server = aiosmtplib.SMTP(hostname=SMTP_SERVER, port=int(SMTP_PORT), use_tls=True)
-        await server.connect()
-        await server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        await server.send_message(msg)
-
-        # Bypass mal-formatted response handling. If response contains non-ASCII chars.
-        try:
-            await server.quit()
-        except Exception as e:
-            print(f"Can't properly close the connection: {str(e)}.")
-
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to send email to {email_to}: {str(e)}.")
-
-
-if __name__ == "__main__":
-    asyncio.run(send_verification_email("huangyanzhen0108@163.com", user_id="UUID_placeholder", token="token_placeholder"))

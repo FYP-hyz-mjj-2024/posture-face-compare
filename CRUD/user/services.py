@@ -1,5 +1,5 @@
 # FastAPI server essentials
-from typing import Union, cast, List, Optional
+from typing import Union, cast
 from fastapi import APIRouter, Depends, HTTPException, status
 import uuid
 
@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
 # Locals
-from auth import generate_jwt, validate_user, send_verification_email
+from auth import generate_jwt, validate_user
 from database import get_db
-from CRUD.user.models import User, WRITE, READ, DELETE, UPDATE, GRANT_PERMISSION
+from CRUD.user.models import User, READ, GRANT_PERMISSION
 from CRUD.user.schemas import (
     WithUserId, UserRegister, UserLoginWithEmail, UserLoginWithName,
     PermissionEdit, UsersGet, EmailVerifySuper, UsersFindByName)
@@ -23,7 +23,7 @@ router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-RESTRICTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined", "postgres"]
+RESTRICTED_USER_NAMES = ["admin", "root", "guest", "null", "nil", "undefined", "postgres", "localhost"]
 
 
 @router.post("/register/")
@@ -40,12 +40,11 @@ async def register_user(user_register: UserRegister,
     ).first()
 
     if db_user:
-        # User exists, resend email.
-        token = generate_jwt(db_user.id)
-        await send_verification_email(email_to=db_user.email, user_id=db_user.id, token=token)
-        raise HTTPException(status_code=400, detail="Email already registered. Re-sending email.")
+        # User exists.
+        raise HTTPException(status_code=400, detail="Email already registered.")
 
     if user_register.name in RESTRICTED_USER_NAMES:
+        # An easter egg.
         raise HTTPException(status_code=400, detail="You're smart, but this user name is invalid.")
 
     # Encrypt user password
@@ -59,9 +58,6 @@ async def register_user(user_register: UserRegister,
 
     # Generate JWT token for email confirmation
     token = generate_jwt(new_user.id)
-
-    # Send verification email
-    await send_verification_email(email_to=new_user.email, user_id=new_user.id, token=token)
 
     return {
         "msg": "OK",
