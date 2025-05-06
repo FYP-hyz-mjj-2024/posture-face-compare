@@ -41,6 +41,14 @@ The storage backend is deployed in the remote server.
 - Deployed on [Ubuntu](https://ubuntu.com/), from infrastructure platform [DigitalOcean](https://digitalocean.com/)
 - Server Domain: [youfocusyourwalk.top](https://youfocusyourwalk.top/docs)
 
+> [!NOTICE]
+> 
+> Important notice: If you want to perform interface testing, please use `curl` to write http request,
+> and don't use the swagger UI of FastApi, as it doesn't support adding authorization to HTTP header.
+> 
+> A good curl tool is the [Rest Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) 
+> extension of VSCode.
+
 # Pre-requisites
 ## Pre-1 What to prepare
 If you want to deploy the storage backend to your own server, you need to prepare the following yourself.
