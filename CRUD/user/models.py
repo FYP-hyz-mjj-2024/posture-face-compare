@@ -69,11 +69,19 @@ class User(Base):
                          default=(READ | WRITE | DELETE | UPDATE),
                          nullable=False)
 
-    def verify_email(self):
+    def verify_email(self, verify=True):
         """
         Verify the email of this user.
+        :param verify: True for verification, False for revoke verification.
         """
-        self.is_verified = True
+        self.is_verified = verify
+
+    def change_password(self, new_password_hash: str):
+        """
+        Change the user password.
+        :param new_password_hash: The hash of the new password.
+        """
+        self.password_hash = new_password_hash
 
     def check_permission(self, permission: int) -> bool:
         """

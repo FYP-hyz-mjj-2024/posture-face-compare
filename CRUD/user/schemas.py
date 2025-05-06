@@ -44,3 +44,7 @@ class UsersGet(WithUserId):
 
 class UsersFindByName(WithUserId):
     query: str
+
+
+class PasswordChange(WithUserId):
+    new_password: str

@@ -16,7 +16,7 @@ from database import get_db
 from CRUD.user.models import User, READ, GRANT_PERMISSION
 from CRUD.user.schemas import (
     WithUserId, UserRegister, UserLoginWithEmail, UserLoginWithName,
-    PermissionEdit, UsersGet, EmailVerifySuper, UsersFindByName)
+    PermissionEdit, UsersGet, EmailVerifySuper, UsersFindByName, PasswordChange)
 from query import find_by, _guard_db, get_header_token
 
 router = APIRouter()
@@ -101,6 +101,7 @@ async def verify_email_super(
     """
     Manual email verification by superuser.
     :param email_verify_super: Email verification data.
+    :param token: Authorization JWT token.
     :param db: Database session.
     :return:
     """
@@ -184,6 +185,36 @@ async def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_
     return {"msg": "User deleted successfully.", "user_id": str(user_id)}
 
 
+@router.post("/change_password/")
+async def change_password(
+        password_change: PasswordChange,
+        token: str = Depends(get_header_token),
+        db: Session = Depends(get_db)):
+    """
+    User change password.
+    :param password_change: User password change schema.
+    :param token: Authorization JWT token.
+    :param db: Database object.
+    """
+    validate_user(password_change.user_id, token)
+
+    db_user = find_by(orm=User,
+                      attr="id",
+                      val=password_change.user_id,
+                      db=db)
+
+    hashed_password = pwd_context.hash(password_change.new_password)
+
+    db_user.change_password(new_password_hash=hashed_password)
+    db_user.verify_email(verify=False)
+    db.commit()
+    db.refresh(db_user)
+
+    return {
+        "msg": f"Successfully updated password for user {password_change.user_id}."
+    }
+
+
 @router.post("/get_user/")
 async def get_user(
         with_user_id: WithUserId,
@@ -201,7 +232,6 @@ async def get_user(
     db_user = find_by(orm=User,
                       attr="id",
                       val=with_user_id.user_id,
-                      fail_detail=f"User with id {with_user_id.user_id} is not found.",
                       db=db)
 
     return {

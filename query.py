@@ -1,7 +1,6 @@
 # FastAPI server essentials
-from typing import cast
+from typing import cast, Optional
 from fastapi import Depends, HTTPException, status, Header
-from uuid import UUID
 
 # PostgreSQL database connection
 from sqlalchemy.orm import Session
@@ -17,7 +16,7 @@ from database import Base
 def find_by(orm: Base,
             attr: str,
             val,
-            fail_detail: str = "User not found.",
+            fail_detail: Optional[str] = None,
             db: Session = Depends(get_db)) -> Base:
     """
     Find an orm object by its attribute. Equivalent to:
@@ -41,6 +40,9 @@ def find_by(orm: Base,
     db_orm = db.query(orm).filter(
         cast("ColumnElement[bool]", column == val)
     ).first()
+
+    if fail_detail is None:
+        fail_detail = f"{orm.__class__.__name__} with {attr} {str(val)} is not found."
 
     if not db_orm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=fail_detail)
