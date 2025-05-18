@@ -2,9 +2,11 @@
 import os
 
 # FastAPI server essentials
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 # Routers
@@ -31,6 +33,13 @@ app.add_middleware(
 
 app.include_router(user_router, prefix="/user", tags=["User"])
 app.include_router(face_router, prefix="/face", tags=["Face"])
+
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open("static/index.html", "r") as file:
+        html_content = file.read()
+    return HTMLResponse(content=html_content)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=f"{SERVER_HOST}", port=8001)

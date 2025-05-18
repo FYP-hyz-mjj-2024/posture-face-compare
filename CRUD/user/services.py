@@ -67,32 +67,6 @@ async def register_user(user_register: UserRegister,
     }
 
 
-@router.get("/verify_email/")
-async def verify_email(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
-    """
-    New user email verification.
-    :param user_id: UUID of the new user.
-    :param token: JWT token of the user.
-    :param db: Database object.
-    :return: Verification result.
-    """
-    validate_user(user_id=user_id, token=token)
-
-    db_user = find_by(orm=User,
-                      attr="id",
-                      val=user_id,
-                      fail_detail=f"User with id {user_id} is not found.",
-                      db=db)
-
-    if db_user.is_verified:
-        raise HTTPException(status_code=400, detail=f"Email already verified.")
-
-    db_user.is_verified = True
-    db.commit()
-
-    return {"msg": "Email verified successfully."}
-
-
 @router.post("/verify_email_super/")
 async def verify_email_super(
         email_verify_super: EmailVerifySuper,
@@ -162,29 +136,6 @@ async def login_user(
     }
 
 
-@router.post("/delete_account/")
-async def delete_user(user_id: uuid.UUID, token: str, db: Session = Depends(get_db)):
-    """
-    Delete existing user.
-    :param user_id: UUID of the user.
-    :param token: JWT token of the user.
-    :param db: Database object.
-    :return: Deletion result.
-    """
-    validate_user(user_id, token)
-
-    db_user = find_by(orm=User,
-                      attr="id",
-                      val=user_id,
-                      fail_detail=f"User with id {user_id} is not found.",
-                      db=db)
-
-    db.delete(db_user)
-    db.commit()
-
-    return {"msg": "User deleted successfully.", "user_id": str(user_id)}
-
-
 @router.post("/change_password/")
 async def change_password(
         password_change: PasswordChange,
@@ -198,10 +149,15 @@ async def change_password(
     """
     validate_user(password_change.user_id, token)
 
+    _guard_db(auth=password_change, token=token, permission=GRANT_PERMISSION, db=db)
+
     db_user = find_by(orm=User,
                       attr="id",
-                      val=password_change.user_id,
+                      val=password_change.requester_user_id,
                       db=db)
+
+    if not db_user.is_verified:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"User {db_user.id} is not verified.")
 
     hashed_password = pwd_context.hash(password_change.new_password)
 

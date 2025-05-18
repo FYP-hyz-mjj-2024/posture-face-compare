@@ -47,4 +47,5 @@ class UsersFindByName(WithUserId):
 
 
 class PasswordChange(WithUserId):
+    requester_user_id: uuid.UUID
     new_password: str
