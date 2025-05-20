@@ -9,6 +9,8 @@
 > the storage backend is already deployed in the remote Ubuntu server in [DigitalOcean](https://cloud.digitalocean.com/).
 > 
 > This README is a manual to deploy the storage backend on an Ubuntu Server droplet in DigitalOcean.
+> 
+> The [frontend](https://github.com/FYP-hyz-mjj-2024/posture-video-stream) is run locally. It does not run on this server.
 
 
 ## Personnel
