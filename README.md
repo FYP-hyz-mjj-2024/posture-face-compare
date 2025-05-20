@@ -1,4 +1,4 @@
-# Pedestrian Cell Phone Usage Detection - Storage Backend
+# Real-time Pedestrian Cell Phone Usage Detection - Storage Backend
 > Alias: **YOU FOCUS YOUR WALK**
 
 <img src="https://s2.loli.net/2025/04/15/lSCdHQFZakJEzOY.png" alt="This is a remote image.">
@@ -14,7 +14,7 @@
 
 
 ## Personnel
-- **Group Members:** [Mai Jiajun](https://github.com/SpinningMai), [Huang Yanzhen](https://github.com/YanzhenHuang)
+- **Group Members:** [Mai Jiajun DC127853](https://github.com/SpinningMai), [Huang Yanzhen DC126732](https://github.com/YanzhenHuang)
 - **Supervisor:** Prof. Bob Zhang
 
 ## Basic Information
