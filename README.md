@@ -248,8 +248,8 @@ SERVER_HOST=0.0.0.0         # Expose to internet
 DATABASE_URL=postgresql://<USER_NAME>:<PASSWORD>@localhost:5432/<DATABASE_NAME>
 ```
 
-> If you are confused by the `https` text in the 5th line, don't worry, feel free to configure it. 
-> We will configure HTTPS later. Please 
+> If you are confused by the `https` text in the 5th line, don't worry, feel free to write it. 
+> We will configure HTTPS later.
 
 2.3.4 Install packages listed in [requirements.txt](./requirements.txt)
 ```sh
@@ -338,9 +338,9 @@ sudo nginx -t
 sudo systemctl start nginx
 ```
 
-First command: Link the config file to Nginx.
-Second command: Check syntax errors in config file. (Please always do this.)
-Third command: Runs Nginx to apply changes.
+1. First command: Link the config file to Nginx.
+2. Second command: Check syntax errors in config file. (Please always do this.)
+3. Third command: Runs Nginx to apply changes.
 
 You can also check Nginx's status by running:
 
@@ -363,11 +363,11 @@ sudo systemctl reload nginx
 sudo apt install certbot python3-certbot-nginx
 ```
 
-Certbot helps you get a static SSL certificate to support HTTPS.
+Certbot helps you get a static TLS certificate to support HTTPS.
 
 The plugin integrates certbot with Nginx to make configuration more convenient.
 
-> Please make sure your domain (in my case, youfocusyourwalk.top), is DNS-propagated correctly,
+> Please make sure your domain (in my case, `youfocusyourwalk.top`), is DNS-propagated correctly,
 > and Nginx is serving HTTP. You may:
 > 1. Ping your domain first by running `ping <YOUR_DOMAIN>`
 > 2. Test in the browser (or use `curl` if you prefer) on http://<YOUR_DOMAIN> .
